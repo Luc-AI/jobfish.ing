@@ -1,7 +1,5 @@
 import { ApifyClient } from 'apify-client'
 
-const client = new ApifyClient({ token: process.env.APIFY_API_TOKEN })
-
 export interface NormalizedJob {
   title: string
   company: string
@@ -42,6 +40,11 @@ export async function runApifyActor(
   actorId: string,
   input: Record<string, unknown>
 ): Promise<Record<string, unknown>[]> {
+  const token = process.env.APIFY_API_TOKEN
+  if (!token) {
+    throw new Error('APIFY_API_TOKEN environment variable is not set')
+  }
+  const client = new ApifyClient({ token })
   const run = await client.actor(actorId).call(input, { waitSecs: 120 })
   const { items } = await client.dataset(run.defaultDatasetId).listItems()
   return items as Record<string, unknown>[]
