@@ -32,11 +32,27 @@ export default function LoginPage() {
     const supabase = createClient()
     setLoading(true)
     setError(null)
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) {
       setError(error.message)
-    } else {
+      setLoading(false)
+      return
+    }
+    if (!data.user) {
+      setError('Sign in failed. Please try again.')
+      setLoading(false)
+      return
+    }
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('onboarding_completed')
+      .eq('id', data.user.id)
+      .single()
+
+    if (profile?.onboarding_completed) {
       router.push('/dashboard')
+    } else {
+      router.push('/onboarding')
     }
     setLoading(false)
   }
