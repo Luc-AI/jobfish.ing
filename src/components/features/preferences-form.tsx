@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { posthog } from '@/lib/posthog'
 
 interface PreferencesValues {
   cvText: string
@@ -45,6 +46,7 @@ export function PreferencesForm({ defaultValues, onSave }: PreferencesFormProps)
       locations: inputToArray(locations),
       excludedCompanies: inputToArray(excludedCompanies),
     })
+    posthog.capture('preferences_updated')
     setSaving(false)
     setSaved(true)
     setTimeout(() => setSaved(false), 2000)

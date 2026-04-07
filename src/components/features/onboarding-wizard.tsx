@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Slider } from '@/components/ui/slider'
 import { Switch } from '@/components/ui/switch'
+import { posthog } from '@/lib/posthog'
 
 interface OnboardingWizardProps {
   userId: string
@@ -78,6 +79,7 @@ export function OnboardingWizard({ userId, initialStep = 1 }: OnboardingWizardPr
       })
       .eq('id', userId)
     setSaving(false)
+    posthog.capture('onboarding_completed', { user_id: userId })
     router.push('/dashboard')
   }
 

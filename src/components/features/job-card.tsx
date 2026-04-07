@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { ScoreBadge } from './score-badge'
 import { cn } from '@/lib/utils'
+import { posthog } from '@/lib/posthog'
 
 interface Dimensions {
   role_fit: number
@@ -99,7 +100,10 @@ export function JobCard({ evaluation, onAction }: JobCardProps) {
         {evaluation.reasoning && (
           <div className="mt-3">
             <button
-              onClick={() => setExpanded(!expanded)}
+              onClick={() => {
+                setExpanded(!expanded)
+                if (!expanded) posthog.capture('job_viewed', { job_id: job.id, score: evaluation.score })
+              }}
               className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
               aria-label="Why this job"
             >
@@ -118,7 +122,10 @@ export function JobCard({ evaluation, onAction }: JobCardProps) {
           <Button
             size="sm"
             variant="outline"
-            onClick={() => onAction(job.id, 'saved')}
+            onClick={() => {
+              posthog.capture('job_saved', { job_id: job.id, score: evaluation.score })
+              onAction(job.id, 'saved')
+            }}
             className={cn(currentStatus === 'saved' && 'border-primary')}
           >
             Save
@@ -126,7 +133,10 @@ export function JobCard({ evaluation, onAction }: JobCardProps) {
           <Button
             size="sm"
             variant="outline"
-            onClick={() => onAction(job.id, 'hidden')}
+            onClick={() => {
+              posthog.capture('job_hidden', { job_id: job.id, score: evaluation.score })
+              onAction(job.id, 'hidden')
+            }}
           >
             Hide
           </Button>
@@ -134,7 +144,10 @@ export function JobCard({ evaluation, onAction }: JobCardProps) {
           <Button
             size="sm"
             asChild
-            onClick={() => onAction(job.id, 'applied')}
+            onClick={() => {
+              posthog.capture('job_applied', { job_id: job.id, score: evaluation.score })
+              onAction(job.id, 'applied')
+            }}
           >
             <a href={job.url} target="_blank" rel="noopener noreferrer">
               Apply <ExternalLink className="h-3 w-3 ml-1" />

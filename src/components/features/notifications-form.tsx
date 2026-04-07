@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Slider } from '@/components/ui/slider'
 import { Switch } from '@/components/ui/switch'
+import { posthog } from '@/lib/posthog'
 
 interface NotificationsFormProps {
   defaultThreshold: number
@@ -27,6 +28,10 @@ export function NotificationsForm({
   async function handleSave() {
     setSaving(true)
     await onSave({ threshold, notificationsEnabled })
+    posthog.capture('notification_settings_updated', {
+      threshold,
+      notifications_enabled: notificationsEnabled,
+    })
     setSaving(false)
     setSaved(true)
     setTimeout(() => setSaved(false), 2000)
