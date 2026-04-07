@@ -17,6 +17,7 @@
     "@hookform/resolvers": "^5.2.2",
     "@radix-ui/react-slot": "^1.2.4",
     "@sentry/nextjs": "^10.47.0",
+    "@sentry/node": "^10.47.0",
     "@supabase/ssr": "^0.10.0",
     "@supabase/supabase-js": "^2.101.1",
     "@trigger.dev/sdk": "^4.4.3",
