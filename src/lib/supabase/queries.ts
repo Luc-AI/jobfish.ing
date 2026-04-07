@@ -49,6 +49,17 @@ export async function getJobFeed(
   const from = (page - 1) * pageSize
   const to = from + pageSize - 1
 
+  // Get IDs of jobs the user has hidden, to exclude them
+  let hiddenJobIds: string[] = []
+  if (hideHidden) {
+    const { data: hiddenActions } = await supabase
+      .from('user_job_actions')
+      .select('job_id')
+      .eq('user_id', userId)
+      .eq('status', 'hidden')
+    hiddenJobIds = (hiddenActions ?? []).map(a => a.job_id)
+  }
+
   let query = supabase
     .from('job_evaluations')
     .select(`
@@ -76,8 +87,8 @@ export async function getJobFeed(
     .order('score', { ascending: false })
     .range(from, to)
 
-  if (hideHidden) {
-    query = query.not('user_job_actions.status', 'eq', 'hidden')
+  if (hideHidden && hiddenJobIds.length > 0) {
+    query = query.not('job_id', 'in', `(${hiddenJobIds.join(',')})`)
   }
 
   return query
