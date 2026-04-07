@@ -32,7 +32,7 @@ export function AppShell({ children }: AppShellProps) {
               href={href}
               className={cn(
                 'flex items-center gap-2.5 px-3 py-2 rounded-md text-sm font-medium transition-colors',
-                pathname === href
+                pathname === href || pathname.startsWith(href + '/')
                   ? 'bg-primary text-primary-foreground'
                   : 'text-muted-foreground hover:text-foreground hover:bg-accent'
               )}
