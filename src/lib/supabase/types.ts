@@ -42,6 +42,7 @@ export type Database = {
           created_at?: string
           updated_at?: string
         }
+        Relationships: []
       }
       preferences: {
         Row: {
@@ -71,6 +72,7 @@ export type Database = {
           excluded_companies?: string[]
           updated_at?: string
         }
+        Relationships: []
       }
       jobs: {
         Row: {
@@ -103,6 +105,7 @@ export type Database = {
           description?: string | null
           scraped_at?: string
         }
+        Relationships: []
       }
       job_evaluations: {
         Row: {
@@ -135,6 +138,22 @@ export type Database = {
           notified_at?: string | null
           created_at?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: "job_evaluations_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "job_evaluations_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          }
+        ]
       }
       user_job_actions: {
         Row: {
@@ -161,6 +180,22 @@ export type Database = {
           applied_at?: string | null
           created_at?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: "user_job_actions_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_job_actions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          }
+        ]
       }
     }
     Views: Record<string, never>
