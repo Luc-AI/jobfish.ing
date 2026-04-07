@@ -1,7 +1,6 @@
 'use client'
 
 import { JobCard } from './job-card'
-import { upsertJobActionClient } from '@/app/(app)/dashboard/actions'
 
 type Evaluation = Parameters<typeof JobCard>[0]['evaluation']
 

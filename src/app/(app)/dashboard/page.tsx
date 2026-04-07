@@ -2,7 +2,8 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { getJobFeed } from '@/lib/supabase/queries'
 import { JobFeed } from '@/components/features/job-feed'
-import { upsertJobActionClient } from './actions'
+import { upsertJobAction } from './actions'
+import type { JobEvaluation } from '@/components/features/job-card'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
 
@@ -35,8 +36,8 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
       </div>
 
       <JobFeed
-        evaluations={(evaluations ?? []) as any}
-        onAction={upsertJobActionClient}
+        evaluations={(evaluations ?? []) as JobEvaluation[]}
+        onAction={upsertJobAction}
       />
 
       {(page > 1 || hasMore) && (

@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { upsertJobAction } from '@/lib/supabase/queries'
 
-export async function upsertJobActionClient(
+export async function upsertJobAction(
   jobId: string,
   status: 'saved' | 'hidden' | 'applied'
 ) {

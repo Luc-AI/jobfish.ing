@@ -16,7 +16,7 @@ interface Dimensions {
   growth_potential: number
 }
 
-interface JobEvaluation {
+export interface JobEvaluation {
   id: string
   score: number
   reasoning: string | null
