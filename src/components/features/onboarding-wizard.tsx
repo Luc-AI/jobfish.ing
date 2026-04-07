@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
@@ -17,7 +17,8 @@ interface OnboardingWizardProps {
 
 export function OnboardingWizard({ userId, initialStep = 1 }: OnboardingWizardProps) {
   const router = useRouter()
-  const supabase = createClient()
+  const supabaseRef = useRef(createClient())
+  const supabase = supabaseRef.current
   const [step, setStep] = useState<1 | 2 | 3>(initialStep)
   const [saving, setSaving] = useState(false)
 
@@ -151,7 +152,7 @@ export function OnboardingWizard({ userId, initialStep = 1 }: OnboardingWizardPr
               />
             </div>
             <div className="flex justify-between">
-              <Button variant="outline" onClick={() => setStep(1)}>Back</Button>
+              <Button variant="outline" onClick={() => setStep(1)} disabled={saving}>Back</Button>
               <Button onClick={saveStep2} disabled={saving}>
                 {saving ? 'Saving…' : 'Next'}
               </Button>
@@ -191,7 +192,7 @@ export function OnboardingWizard({ userId, initialStep = 1 }: OnboardingWizardPr
               />
             </div>
             <div className="flex justify-between">
-              <Button variant="outline" onClick={() => setStep(2)}>Back</Button>
+              <Button variant="outline" onClick={() => setStep(2)} disabled={saving}>Back</Button>
               <Button onClick={saveStep3} disabled={saving}>
                 {saving ? 'Setting up…' : 'Start fishing'}
               </Button>
