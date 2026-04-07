@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect } from 'vitest'
 import { buildEvaluationPrompt, parseEvaluationResponse } from '@/trigger/lib/evaluate'
 
 describe('buildEvaluationPrompt', () => {
@@ -47,6 +47,12 @@ describe('parseEvaluationResponse', () => {
     const raw = '```json\n{"score":7.0,"reasoning":"Good.","dimensions":{"role_fit":7,"company_fit":7,"location":7,"growth_potential":7}}\n```'
     const result = parseEvaluationResponse(raw)
     expect(result.score).toBe(7.0)
+  })
+
+  it('parses JSON with leading newline before code block', () => {
+    const raw = '\n```json\n{"score":6.0,"reasoning":"Decent.","dimensions":{"role_fit":6,"company_fit":6,"location":6,"growth_potential":6}}\n```'
+    const result = parseEvaluationResponse(raw)
+    expect(result.score).toBe(6.0)
   })
 
   it('throws on invalid JSON', () => {

@@ -14,3 +14,4 @@ export const scoreResponseSchema = z.object({
 })
 
 export type ScoreResponse = z.infer<typeof scoreResponseSchema>
+export type Dimensions = z.infer<typeof dimensionsSchema>

@@ -60,6 +60,7 @@ Respond with ONLY valid JSON in this exact format:
 export function parseEvaluationResponse(raw: string): ScoreResponse {
   // Strip markdown code blocks if present
   const cleaned = raw
+    .trim()
     .replace(/^```(?:json)?\s*/i, '')
     .replace(/\s*```$/, '')
     .trim()
@@ -69,10 +70,15 @@ export function parseEvaluationResponse(raw: string): ScoreResponse {
 }
 
 export async function callOpenRouter(prompt: string): Promise<string> {
+  const apiKey = process.env.OPENROUTER_API_KEY
+  if (!apiKey) {
+    throw new Error('OPENROUTER_API_KEY environment variable is not set')
+  }
+
   const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
     method: 'POST',
     headers: {
-      Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
+      Authorization: `Bearer ${apiKey}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
@@ -87,5 +93,9 @@ export async function callOpenRouter(prompt: string): Promise<string> {
   }
 
   const data = await response.json()
-  return data.choices[0].message.content as string
+  const content = data?.choices?.[0]?.message?.content
+  if (typeof content !== 'string') {
+    throw new Error(`OpenRouter returned no content. Response: ${JSON.stringify(data)}`)
+  }
+  return content
 }
