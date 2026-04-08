@@ -1,4 +1,4 @@
-import { task } from '@trigger.dev/sdk/v3'
+import { task } from '@trigger.dev/sdk'
 import * as Sentry from '@sentry/node'
 import { createServiceClient } from '@/lib/supabase/service'
 import { buildEvaluationPrompt, callOpenRouter, parseEvaluationResponse } from './lib/evaluate'
