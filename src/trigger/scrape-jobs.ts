@@ -1,59 +1,44 @@
-import { schedules, task } from '@trigger.dev/sdk/v3'
+import { schedules } from '@trigger.dev/sdk'
 import * as Sentry from '@sentry/node'
 import { createServiceClient } from '@/lib/supabase/service'
-import { scrapeLinkedIn, scrapeJobsCh, type NormalizedJob } from './lib/apify'
+import { scrapeAll, type NormalizedJob } from './lib/apify'
 import { evaluateJobsTask } from './evaluate-jobs'
 
-export const scrapeJobsTask = task({
+export const scrapeJobsTask = schedules.task({
   id: 'scrape-jobs',
-  retry: { maxAttempts: 3, minTimeoutInMs: 5000, maxTimeoutInMs: 30000 },
+  cron: '0 * * * *', // every hour
+  retry: { maxAttempts: 3, minTimeoutInMs: 5_000, maxTimeoutInMs: 30_000 },
   run: async () => {
     const supabase = createServiceClient()
 
-    // Collect all unique locations and roles from active users to guide scraping
-    const { data: preferences } = await supabase
+    // Fetch all active users' preferences to build Apify input
+    const { data: preferences, error: prefsError } = await supabase
       .from('preferences')
-      .select('target_roles, locations')
-      .gt('target_roles', '{}')
+      .select('target_roles, locations, excluded_companies')
 
-    const allLocations = [...new Set(
-      (preferences ?? []).flatMap(p => p.locations ?? [])
-    )].slice(0, 5) // cap to avoid excessive scraping
+    if (prefsError) {
+      Sentry.captureException(prefsError)
+      throw new Error(`Failed to fetch preferences: ${prefsError.message}`)
+    }
 
-    const allRoles = [...new Set(
-      (preferences ?? []).flatMap(p => p.target_roles ?? [])
-    )].slice(0, 10)
-
-    if (allRoles.length === 0) {
-      console.log('No active users with preferences. Skipping scrape.')
+    if (!preferences || preferences.length === 0) {
+      console.log('No user preferences found. Skipping scrape.')
       return { newJobIds: [] }
     }
 
-    // Scrape from both sources
-    const [linkedInJobs, jobsChJobs] = await Promise.allSettled([
-      scrapeLinkedIn(allRoles, allLocations[0] ?? 'Switzerland'),
-      scrapeJobsCh(allRoles),
-    ])
+    // Scrape both actors in parallel using aggregated preferences
+    const jobs: NormalizedJob[] = await scrapeAll(preferences)
+    console.log(`Scraped ${jobs.length} jobs from Apify`)
 
-    const rawJobs: NormalizedJob[] = [
-      ...(linkedInJobs.status === 'fulfilled' ? linkedInJobs.value : []),
-      ...(jobsChJobs.status === 'fulfilled' ? jobsChJobs.value : []),
-    ]
-
-    if (linkedInJobs.status === 'rejected') {
-      Sentry.captureException(linkedInJobs.reason)
-    }
-    if (jobsChJobs.status === 'rejected') {
-      Sentry.captureException(jobsChJobs.reason)
+    if (jobs.length === 0) {
+      return { newJobIds: [] }
     }
 
-    console.log(`Scraped ${rawJobs.length} raw jobs`)
-
-    // Deduplicate by URL — upsert, ignore conflicts
-    const { data: insertedJobs, error } = await supabase
+    // Upsert into jobs table — ON CONFLICT (url) DO NOTHING handles deduplication
+    const { data: insertedJobs, error: insertError } = await supabase
       .from('jobs')
       .upsert(
-        rawJobs.map(j => ({
+        jobs.map(j => ({
           title: j.title,
           company: j.company,
           location: j.location,
@@ -65,27 +50,24 @@ export const scrapeJobsTask = task({
       )
       .select('id')
 
-    if (error) {
-      Sentry.captureException(error)
-      throw new Error(`Failed to insert jobs: ${error.message}`)
+    if (insertError) {
+      Sentry.captureException(insertError)
+      throw new Error(`Failed to upsert jobs: ${insertError.message}`)
     }
 
     const newJobIds = (insertedJobs ?? []).map(j => j.id)
     console.log(`Inserted ${newJobIds.length} new jobs`)
 
-    if (newJobIds.length > 0) {
-      await evaluateJobsTask.trigger({ jobIds: newJobIds })
+    if (newJobIds.length === 0) {
+      return { newJobIds: [] }
+    }
+
+    // Trigger evaluate-jobs with the new job IDs
+    const result = await evaluateJobsTask.triggerAndWait({ jobIds: newJobIds })
+    if (!result.ok) {
+      Sentry.captureException(new Error(`evaluate-jobs failed: ${result.error}`))
     }
 
     return { newJobIds }
-  },
-})
-
-// Cron: every 6 hours
-export const scrapeJobsSchedule = schedules.task({
-  id: 'scrape-jobs-schedule',
-  cron: '0 */6 * * *',
-  run: async () => {
-    await scrapeJobsTask.trigger()
   },
 })
