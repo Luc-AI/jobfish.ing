@@ -108,7 +108,7 @@ export function normalizeFantasticJob(raw: Record<string, unknown>): NormalizedJ
     company: org,
     location,
     url,
-    source: (raw.source as string | undefined) ?? 'unknown',
+    source: ((raw.source as string | undefined) || 'unknown'),
     description: (raw.description_text as string | undefined) ?? null,
   }
 }
@@ -120,11 +120,14 @@ async function callApifyActor(
   const token = process.env.APIFY_API_TOKEN
   if (!token) throw new Error('APIFY_API_TOKEN is not set')
 
-  const url = `${endpoint}?token=${token}`
-  const res = await fetch(url, {
+  const res = await fetch(endpoint, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
     body: JSON.stringify(input),
+    signal: AbortSignal.timeout(270_000),
   })
 
   if (!res.ok) {

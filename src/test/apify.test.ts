@@ -171,6 +171,60 @@ describe('scrapeAll', () => {
     vi.unstubAllGlobals()
   })
 
+  it('calls both actors with correct endpoints', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve([]),
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const prefs = [{ target_roles: ['Engineer'], locations: [], excluded_companies: [] }]
+    await scrapeAll(prefs)
+
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      expect.stringContaining('career-site-job-listing-api'),
+      expect.objectContaining({ method: 'POST' })
+    )
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      expect.stringContaining('advanced-linkedin-job-search-api'),
+      expect.objectContaining({ method: 'POST' })
+    )
+  })
+
+  it('passes Authorization header with Bearer token', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve([]),
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const prefs = [{ target_roles: ['Engineer'], locations: [], excluded_companies: [] }]
+    await scrapeAll(prefs)
+
+    // Verify both calls include Authorization header
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      expect.any(String),
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          'Authorization': 'Bearer test-token',
+        }),
+      })
+    )
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      expect.any(String),
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          'Authorization': 'Bearer test-token',
+        }),
+      })
+    )
+  })
+
   it('returns combined jobs from both actors', async () => {
     const mockItem = {
       title: 'Head of Product',
@@ -193,7 +247,6 @@ describe('scrapeAll', () => {
     const prefs = [{ target_roles: ['Head of Product'], locations: ['Zurich'], excluded_companies: [] }]
     const jobs = await scrapeAll(prefs)
 
-    // Both actors succeed and return mockItem → 2 jobs total
     expect(jobs).toHaveLength(2)
     expect(jobs[0].title).toBe('Head of Product')
   })
