@@ -194,6 +194,14 @@ describe('scrapeAll', () => {
     )
   })
 
+  it('throws when APIFY_API_TOKEN is not set', async () => {
+    delete process.env.APIFY_API_TOKEN
+    vi.stubGlobal('fetch', vi.fn())
+    await expect(
+      scrapeAll([{ target_roles: ['Engineer'], locations: [], excluded_companies: [] }])
+    ).rejects.toThrow('APIFY_API_TOKEN is not set')
+  })
+
   it('passes Authorization header with Bearer token', async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
