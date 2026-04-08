@@ -1,8 +1,9 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import {
   normalizeFantasticJob,
   buildApifyInput,
   toApifyLocation,
+  scrapeAll,
 } from '@/trigger/lib/apify'
 
 describe('toApifyLocation', () => {
@@ -157,5 +158,82 @@ describe('buildApifyInput', () => {
     expect(input.descriptionType).toBe('text')
     expect(input.includeAi).toBe(true)
     expect(input.removeAgency).toBe(true)
+  })
+})
+
+describe('scrapeAll', () => {
+  beforeEach(() => {
+    process.env.APIFY_API_TOKEN = 'test-token'
+  })
+
+  afterEach(() => {
+    delete process.env.APIFY_API_TOKEN
+    vi.unstubAllGlobals()
+  })
+
+  it('returns combined jobs from both actors', async () => {
+    const mockItem = {
+      title: 'Head of Product',
+      organization: 'Acme',
+      url: 'https://example.com/job/1',
+      source: 'greenhouse',
+      description_text: 'Great role',
+      locations_derived: [{ city: 'Zurich', country: 'Switzerland' }],
+      remote_derived: false,
+    }
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve([mockItem]),
+      }),
+    )
+
+    const prefs = [{ target_roles: ['Head of Product'], locations: ['Zurich'], excluded_companies: [] }]
+    const jobs = await scrapeAll(prefs)
+
+    // Both actors succeed and return mockItem → 2 jobs total
+    expect(jobs).toHaveLength(2)
+    expect(jobs[0].title).toBe('Head of Product')
+  })
+
+  it('returns partial results when one actor fails', async () => {
+    const mockItem = {
+      title: 'Engineer',
+      organization: 'Co',
+      url: 'https://example.com/job/2',
+      source: 'lever',
+      description_text: null,
+      locations_derived: [],
+      remote_derived: true,
+    }
+
+    let callCount = 0
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation(() => {
+        callCount++
+        if (callCount === 1) {
+          return Promise.resolve({ ok: true, json: () => Promise.resolve([mockItem]) })
+        }
+        return Promise.reject(new Error('Network error'))
+      }),
+    )
+
+    const prefs = [{ target_roles: ['Engineer'], locations: [], excluded_companies: [] }]
+    const jobs = await scrapeAll(prefs)
+
+    expect(jobs).toHaveLength(1)
+    expect(jobs[0].company).toBe('Co')
+  })
+
+  it('returns empty array when both actors fail', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('Network error')))
+
+    const prefs = [{ target_roles: ['Engineer'], locations: [], excluded_companies: [] }]
+    const jobs = await scrapeAll(prefs)
+
+    expect(jobs).toHaveLength(0)
   })
 })
