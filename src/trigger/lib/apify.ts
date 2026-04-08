@@ -1,3 +1,5 @@
+import * as Sentry from '@sentry/node'
+
 const CAREER_SITE_ENDPOINT =
   'https://api.apify.com/v2/acts/fantastic-jobs~career-site-job-listing-api/run-sync-get-dataset-items'
 
@@ -117,8 +119,7 @@ async function callApifyActor(
   endpoint: string,
   input: ApifyInput & { excludeATSDuplicate?: boolean }
 ): Promise<NormalizedJob[]> {
-  const token = process.env.APIFY_API_TOKEN
-  if (!token) throw new Error('APIFY_API_TOKEN is not set')
+  const token = process.env.APIFY_API_TOKEN!
 
   const res = await fetch(endpoint, {
     method: 'POST',
@@ -141,7 +142,14 @@ async function callApifyActor(
 }
 
 export async function scrapeAll(preferences: UserPreference[]): Promise<NormalizedJob[]> {
+  if (!process.env.APIFY_API_TOKEN) throw new Error('APIFY_API_TOKEN is not set')
+
   const baseInput = buildApifyInput(preferences)
+
+  if (baseInput.titleSearch.length === 0) {
+    console.log('No job titles in preferences, skipping Apify scrape.')
+    return []
+  }
 
   const [careerSiteResult, linkedInResult] = await Promise.allSettled([
     callApifyActor(CAREER_SITE_ENDPOINT, baseInput),
@@ -154,12 +162,14 @@ export async function scrapeAll(preferences: UserPreference[]): Promise<Normaliz
     jobs.push(...careerSiteResult.value)
   } else {
     console.error('Career site actor failed:', careerSiteResult.reason)
+    Sentry.captureException(careerSiteResult.reason)
   }
 
   if (linkedInResult.status === 'fulfilled') {
     jobs.push(...linkedInResult.value)
   } else {
     console.error('LinkedIn actor failed:', linkedInResult.reason)
+    Sentry.captureException(linkedInResult.reason)
   }
 
   return jobs

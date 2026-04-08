@@ -297,4 +297,13 @@ describe('scrapeAll', () => {
 
     expect(jobs).toHaveLength(0)
   })
+
+  it('returns empty array when all preferences have no target_roles', async () => {
+    vi.stubGlobal('fetch', vi.fn())
+    const prefs = [{ target_roles: [], locations: ['Zurich'], excluded_companies: [] }]
+    const jobs = await scrapeAll(prefs)
+    expect(jobs).toHaveLength(0)
+    // fetch should never have been called
+    expect(vi.mocked(fetch)).not.toHaveBeenCalled()
+  })
 })

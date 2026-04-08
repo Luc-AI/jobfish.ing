@@ -11,17 +11,33 @@ export const scrapeJobsTask = schedules.task({
   run: async () => {
     const supabase = createServiceClient()
 
-    // Fetch all active users' preferences to build Apify input
-    const { data: preferences, error: prefsError } = await supabase
+    // Fetch preferences only for users who completed onboarding
+    const { data: rawPrefs, error: prefsError } = await supabase
       .from('preferences')
-      .select('target_roles, locations, excluded_companies')
+      .select(`
+        target_roles,
+        locations,
+        excluded_companies,
+        profiles!inner ( onboarding_completed )
+      `)
+      .eq('profiles.onboarding_completed', true)
 
     if (prefsError) {
       Sentry.captureException(prefsError)
       throw new Error(`Failed to fetch preferences: ${prefsError.message}`)
     }
 
-    if (!preferences || preferences.length === 0) {
+    const preferences = ((rawPrefs ?? []) as Array<{
+      target_roles: string[] | null
+      locations: string[] | null
+      excluded_companies: string[] | null
+    }>).map(p => ({
+      target_roles: p.target_roles ?? [],
+      locations: p.locations ?? [],
+      excluded_companies: p.excluded_companies ?? [],
+    }))
+
+    if (preferences.length === 0) {
       console.log('No user preferences found. Skipping scrape.')
       return { newJobIds: [] }
     }
