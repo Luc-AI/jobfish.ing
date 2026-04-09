@@ -10,7 +10,9 @@ const LINKEDIN_ENDPOINT =
 // Extend this map as you add more locations to the preferences UI.
 const LOCATION_MAP: Record<string, string> = {
   'Zurich': 'Zurich, Switzerland',
+  'Zürich': 'Zurich, Switzerland',
   'Geneva': 'Geneva, Switzerland',
+  'Genève': 'Geneva, Switzerland',
   'Basel': 'Basel, Switzerland',
   'Bern': 'Bern, Switzerland',
   'Berlin': 'Berlin, Germany',

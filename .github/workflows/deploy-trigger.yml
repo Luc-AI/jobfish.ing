@@ -1,0 +1,25 @@
+name: Deploy Trigger.dev
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'src/trigger/**'
+      - 'trigger.config.ts'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - run: npm ci
+
+      - run: npx trigger deploy --env prod
+        env:
+          TRIGGER_SECRET_KEY: ${{ secrets.TRIGGER_SECRET_KEY }}
