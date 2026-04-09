@@ -22,6 +22,7 @@ export function OnboardingWizard({ userId, initialStep = 1 }: OnboardingWizardPr
   const supabase = supabaseRef.current
   const [step, setStep] = useState<1 | 2 | 3>(initialStep)
   const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
 
   // Step 1: CV
   const [cvText, setCvText] = useState('')
@@ -45,32 +46,37 @@ export function OnboardingWizard({ userId, initialStep = 1 }: OnboardingWizardPr
 
   async function saveStep1() {
     setSaving(true)
-    await supabase
+    setSaveError(null)
+    const { error } = await supabase
       .from('profiles')
       .update({ cv_text: cvText })
       .eq('id', userId)
     setSaving(false)
+    if (error) { setSaveError(error.message); return }
     setStep(2)
   }
 
   async function saveStep2() {
     setSaving(true)
-    await supabase
+    setSaveError(null)
+    const { error } = await supabase
       .from('preferences')
-      .update({
+      .upsert({
+        user_id: userId,
         target_roles: parseCommaSeparated(targetRoles),
         industries: parseCommaSeparated(industries),
         locations: parseCommaSeparated(locations),
         excluded_companies: parseCommaSeparated(excludedCompanies),
-      })
-      .eq('user_id', userId)
+      }, { onConflict: 'user_id' })
     setSaving(false)
+    if (error) { setSaveError(error.message); return }
     setStep(3)
   }
 
   async function saveStep3() {
     setSaving(true)
-    await supabase
+    setSaveError(null)
+    const { error } = await supabase
       .from('profiles')
       .update({
         threshold,
@@ -79,6 +85,7 @@ export function OnboardingWizard({ userId, initialStep = 1 }: OnboardingWizardPr
       })
       .eq('id', userId)
     setSaving(false)
+    if (error) { setSaveError(error.message); return }
     posthog.capture('onboarding_completed', { user_id: userId })
     router.push('/dashboard')
   }
@@ -108,6 +115,7 @@ export function OnboardingWizard({ userId, initialStep = 1 }: OnboardingWizardPr
               className="resize-none font-mono text-sm"
             />
             <p className="text-xs text-muted-foreground">{cvText.length} characters</p>
+            {saveError && <p className="text-sm text-destructive">{saveError}</p>}
             <div className="flex justify-end">
               <Button onClick={saveStep1} disabled={saving}>
                 {saving ? 'Saving…' : 'Next'}
@@ -153,6 +161,7 @@ export function OnboardingWizard({ userId, initialStep = 1 }: OnboardingWizardPr
                 onChange={e => setExcludedCompanies(e.target.value)}
               />
             </div>
+            {saveError && <p className="text-sm text-destructive">{saveError}</p>}
             <div className="flex justify-between">
               <Button variant="outline" onClick={() => setStep(1)} disabled={saving}>Back</Button>
               <Button onClick={saveStep2} disabled={saving}>
@@ -193,6 +202,7 @@ export function OnboardingWizard({ userId, initialStep = 1 }: OnboardingWizardPr
                 onCheckedChange={setNotificationsEnabled}
               />
             </div>
+            {saveError && <p className="text-sm text-destructive">{saveError}</p>}
             <div className="flex justify-between">
               <Button variant="outline" onClick={() => setStep(2)} disabled={saving}>Back</Button>
               <Button onClick={saveStep3} disabled={saving}>
