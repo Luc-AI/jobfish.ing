@@ -49,8 +49,7 @@ export function OnboardingWizard({ userId, initialStep = 1 }: OnboardingWizardPr
     setSaveError(null)
     const { error } = await supabase
       .from('profiles')
-      .update({ cv_text: cvText })
-      .eq('id', userId)
+      .upsert({ id: userId, cv_text: cvText }, { onConflict: 'id' })
     setSaving(false)
     if (error) { setSaveError(error.message); return }
     setStep(2)
