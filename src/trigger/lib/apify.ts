@@ -62,7 +62,7 @@ export function toApifyLocation(city: string): string {
   return LOCATION_MAP[city] ?? city
 }
 
-export function buildApifyInput(preferences: UserPreference[]): ApifyInput {
+export function buildApifyInput(preferences: UserPreference[], timeRange = '1h'): ApifyInput {
   const titleSearch = [...new Set(preferences.flatMap(p => p.target_roles ?? []))]
 
   const rawLocations = [...new Set(preferences.flatMap(p => p.locations ?? []))]
@@ -77,7 +77,7 @@ export function buildApifyInput(preferences: UserPreference[]): ApifyInput {
   ]
 
   return {
-    timeRange: '1h',
+    timeRange,
     limit: 200,
     descriptionType: 'text',
     includeAi: true,
@@ -143,10 +143,10 @@ async function callApifyActor(
     .filter((j): j is NormalizedJob => j !== null)
 }
 
-export async function scrapeAll(preferences: UserPreference[]): Promise<NormalizedJob[]> {
+export async function scrapeAll(preferences: UserPreference[], timeRange = '1h'): Promise<NormalizedJob[]> {
   if (!process.env.APIFY_API_TOKEN) throw new Error('APIFY_API_TOKEN is not set')
 
-  const baseInput = buildApifyInput(preferences)
+  const baseInput = buildApifyInput(preferences, timeRange)
 
   if (baseInput.titleSearch.length === 0) {
     console.log('No job titles in preferences, skipping Apify scrape.')

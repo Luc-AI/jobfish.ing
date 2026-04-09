@@ -159,6 +159,24 @@ describe('buildApifyInput', () => {
     expect(input.includeAi).toBe(true)
     expect(input.removeAgency).toBe(true)
   })
+
+  it('defaults timeRange to 1h', () => {
+    const prefs = [{ target_roles: ['PM'], locations: ['Zurich, Switzerland'], excluded_companies: [] }]
+    const input = buildApifyInput(prefs)
+    expect(input.timeRange).toBe('1h')
+  })
+
+  it('accepts a custom timeRange', () => {
+    const prefs = [{ target_roles: ['PM'], locations: ['Zurich, Switzerland'], excluded_companies: [] }]
+    const input = buildApifyInput(prefs, '7d')
+    expect(input.timeRange).toBe('7d')
+  })
+
+  it('passes timeRange through unchanged', () => {
+    const prefs = [{ target_roles: ['PM'], locations: ['Zurich, Switzerland'], excluded_companies: [] }]
+    const input = buildApifyInput(prefs, '24h')
+    expect(input.timeRange).toBe('24h')
+  })
 })
 
 describe('scrapeAll', () => {
