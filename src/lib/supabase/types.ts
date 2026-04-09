@@ -23,6 +23,8 @@ export type Database = {
           onboarding_completed: boolean
           created_at: string
           updated_at: string
+          first_name: string | null
+          last_name: string | null
         }
         Insert: {
           id: string
@@ -32,6 +34,8 @@ export type Database = {
           onboarding_completed?: boolean
           created_at?: string
           updated_at?: string
+          first_name?: string | null
+          last_name?: string | null
         }
         Update: {
           id?: string
@@ -41,6 +45,8 @@ export type Database = {
           onboarding_completed?: boolean
           created_at?: string
           updated_at?: string
+          first_name?: string | null
+          last_name?: string | null
         }
         Relationships: []
       }
@@ -53,6 +59,7 @@ export type Database = {
           locations: string[]
           excluded_companies: string[]
           updated_at: string
+          remote_preference: string
         }
         Insert: {
           id?: string
@@ -62,6 +69,7 @@ export type Database = {
           locations?: string[]
           excluded_companies?: string[]
           updated_at?: string
+          remote_preference?: string
         }
         Update: {
           id?: string
@@ -71,6 +79,7 @@ export type Database = {
           locations?: string[]
           excluded_companies?: string[]
           updated_at?: string
+          remote_preference?: string
         }
         Relationships: []
       }
