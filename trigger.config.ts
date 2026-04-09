@@ -4,5 +4,6 @@ export default defineConfig({
   project: 'proj_jhpagpimvgxvfnvnlvmp',
   runtime: 'node',
   logLevel: 'log',
+  maxDuration: 300,
   dirs: ['src/trigger'],
 })
