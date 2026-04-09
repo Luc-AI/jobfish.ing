@@ -2,7 +2,7 @@ name: Deploy Trigger.dev
 
 on:
   push:
-    branches: [develop]
+    branches: [master]
     paths:
       - 'src/trigger/**'
       - 'trigger.config.ts'
