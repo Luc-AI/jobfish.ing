@@ -33,7 +33,8 @@ export async function GET(req: NextRequest) {
       .filter((v: string, i: number, arr: string[]) => arr.indexOf(v) === i)
 
     return NextResponse.json({ suggestions })
-  } catch {
+  } catch (err) {
+    console.error('[geoapify/autocomplete] fetch failed:', err)
     return NextResponse.json({ suggestions: [] })
   }
 }
