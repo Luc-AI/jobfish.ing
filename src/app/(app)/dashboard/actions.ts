@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
-import { upsertJobAction } from '@/lib/supabase/queries'
+import { upsertJobAction as upsertJobActionQuery } from '@/lib/supabase/queries'
 
 export async function upsertJobAction(
   jobId: string,
@@ -12,6 +12,6 @@ export async function upsertJobAction(
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) throw new Error('Not authenticated')
 
-  await upsertJobAction(user.id, jobId, status)
+  await upsertJobActionQuery(user.id, jobId, status)
   revalidatePath('/dashboard')
 }
