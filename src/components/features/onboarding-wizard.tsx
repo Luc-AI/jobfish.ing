@@ -103,12 +103,12 @@ export function OnboardingWizard({ userId, initialStep = 1 }: OnboardingWizardPr
     setSaveError(null)
     const { error } = await supabase
       .from('profiles')
-      .update({
+      .upsert({
+        id: userId,
         threshold,
         notifications_enabled: notificationsEnabled,
         onboarding_completed: true,
-      })
-      .eq('id', userId)
+      }, { onConflict: 'id' })
     setSaving(false)
     if (error) { setSaveError(error.message); return }
     posthog.capture('onboarding_completed', { user_id: userId })
