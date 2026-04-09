@@ -78,4 +78,15 @@ describe('LocationPicker', () => {
     await user.click(suggestion)
     expect(onChange).not.toHaveBeenCalled()
   })
+
+  it('shows no suggestions when the fetch returns a non-ok response', async () => {
+    vi.clearAllMocks()
+    mockFetch.mockResolvedValueOnce({ ok: false })
+    const user = userEvent.setup()
+    render(<LocationPicker value={[]} onChange={onChange} />)
+    await user.type(screen.getByPlaceholderText(/type a city/i), 'Zu')
+    await waitFor(() => {
+      expect(screen.queryByRole('listitem')).not.toBeInTheDocument()
+    }, { timeout: 600 })
+  })
 })

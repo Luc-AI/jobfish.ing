@@ -28,6 +28,7 @@ export function LocationPicker({ value, onChange }: LocationPickerProps) {
     debounceRef.current = setTimeout(async () => {
       try {
         const res = await fetch(`/api/geoapify/autocomplete?text=${encodeURIComponent(query)}`)
+        if (!res.ok) throw new Error(`autocomplete ${res.status}`)
         const data = await res.json()
         setSuggestions(data.suggestions ?? [])
         setOpen((data.suggestions ?? []).length > 0)
