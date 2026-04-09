@@ -1,5 +1,24 @@
 @AGENTS.md
 
+## Git Workflow (STRICT — do not deviate)
+
+**Branches:**
+- `master` = production. Vercel and Trigger.dev CI deploy from here. Never commit directly.
+- `develop` = staging/integration. All work lands here first.
+- `feature/*` = short-lived feature branches, branched off `develop`.
+
+**Flow:**
+```
+feature/xyz → PR to develop → review/test → PR to master → prod deploy
+```
+
+**Rules:**
+- NEVER push directly to `master`
+- NEVER push directly to `develop` (use PRs or short-lived feature branches)
+- Always merge `develop` → `master` via PR, not direct merge or cherry-pick
+- One PR per logical change — no bundling unrelated fixes
+- Commit messages: `type: short description` (fix, feat, chore, docs, refactor)
+
 
 <!-- TRIGGER.DEV basic START -->
 # Trigger.dev Basic Tasks (v4)
