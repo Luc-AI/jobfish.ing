@@ -1,6 +1,3 @@
-@AGENTS.md
-
-
 <!-- TRIGGER.DEV basic START -->
 # Trigger.dev Basic Tasks (v4)
 
