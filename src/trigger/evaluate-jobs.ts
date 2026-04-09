@@ -6,12 +6,14 @@ import { notifyUsersTask } from './notify-users'
 
 interface EvaluateJobsPayload {
   jobIds: string[]
+  /** If provided, only evaluate for these users (used for new-user backfill) */
+  userIds?: string[]
 }
 
 export const evaluateJobsTask = task({
   id: 'evaluate-jobs',
   retry: { maxAttempts: 2 },
-  run: async ({ jobIds }: EvaluateJobsPayload) => {
+  run: async ({ jobIds, userIds }: EvaluateJobsPayload) => {
     const supabase = createServiceClient()
 
     // Fetch the new jobs
@@ -25,12 +27,18 @@ export const evaluateJobsTask = task({
       return
     }
 
-    // Fetch all active users with complete profiles
-    const { data: profiles } = await supabase
+    // Fetch active users with complete profiles (optionally scoped to specific users)
+    let profilesQuery = supabase
       .from('profiles')
       .select('id, cv_text')
       .eq('onboarding_completed', true)
       .not('cv_text', 'is', null)
+
+    if (userIds && userIds.length > 0) {
+      profilesQuery = profilesQuery.in('id', userIds)
+    }
+
+    const { data: profiles } = await profilesQuery
 
     if (!profiles?.length) {
       console.log('No active users to evaluate for')
@@ -38,11 +46,11 @@ export const evaluateJobsTask = task({
     }
 
     // Fetch preferences for those users
-    const userIds = profiles.map((p) => p.id)
+    const profileUserIds = profiles.map((p) => p.id)
     const { data: prefsRows } = await supabase
       .from('preferences')
       .select('user_id, target_roles, industries, locations, excluded_companies')
-      .in('user_id', userIds)
+      .in('user_id', profileUserIds)
 
     const prefsMap = new Map(
       (prefsRows ?? []).map((p) => [p.user_id, p])
