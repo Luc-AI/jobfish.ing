@@ -50,25 +50,33 @@ export default function ForgotPasswordPage() {
 
           {!submitted && (
             <CardContent className="space-y-4">
-              <div className="space-y-1">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="you@example.com"
-                  value={email}
-                  onChange={e => setEmail(e.target.value)}
-                />
-              </div>
-              {error && <p className="text-sm text-destructive">{error}</p>}
-              <Button className="w-full" onClick={handleSubmit} disabled={loading}>
-                {loading ? 'Sending…' : 'Send reset link'}
-              </Button>
-              <p className="text-center text-sm text-muted-foreground">
-                <Link href="/login" className="underline underline-offset-4">
-                  Back to sign in
-                </Link>
-              </p>
+              <form
+                onSubmit={e => {
+                  e.preventDefault()
+                  handleSubmit()
+                }}
+                className="space-y-4"
+              >
+                <div className="space-y-1">
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="you@example.com"
+                    value={email}
+                    onChange={e => setEmail(e.target.value)}
+                  />
+                </div>
+                {error && <p className="text-sm text-destructive">{error}</p>}
+                <Button type="submit" className="w-full" disabled={loading}>
+                  {loading ? 'Sending…' : 'Send reset link'}
+                </Button>
+                <p className="text-center text-sm text-muted-foreground">
+                  <Link href="/login" className="underline underline-offset-4">
+                    Back to sign in
+                  </Link>
+                </p>
+              </form>
             </CardContent>
           )}
         </Card>
