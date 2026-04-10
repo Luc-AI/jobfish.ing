@@ -75,15 +75,74 @@ export const scrapeJobsTask = schedules.task({
     console.log(`Inserted ${newJobIds.length} new jobs`)
 
     if (newJobIds.length === 0) {
+      // No new jobs — but check if any users need a backfill
+      await backfillNewUsers(supabase)
       return { newJobIds: [] }
     }
 
-    // Trigger evaluate-jobs with the new job IDs
+    // Trigger evaluate-jobs with the new job IDs (for all active users)
     const result = await evaluateJobsTask.triggerAndWait({ jobIds: newJobIds })
     if (!result.ok) {
       Sentry.captureException(new Error(`evaluate-jobs failed: ${result.error}`))
     }
 
+    // Also backfill any users who completed onboarding but have no evaluations yet
+    await backfillNewUsers(supabase, newJobIds)
+
     return { newJobIds }
   },
 })
+
+async function backfillNewUsers(
+  supabase: ReturnType<typeof createServiceClient>,
+  excludeJobIds: string[] = []
+) {
+  // Find users with onboarding done and cv_text but zero evaluations
+  const { data: newUsers } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('onboarding_completed', true)
+    .not('cv_text', 'is', null)
+
+  if (!newUsers?.length) return
+
+  const allUserIds = newUsers.map(u => u.id)
+
+  // Among those, find which ones have no evaluations at all
+  const { data: evaluated } = await supabase
+    .from('job_evaluations')
+    .select('user_id')
+    .in('user_id', allUserIds)
+
+  const evaluatedUserIds = new Set((evaluated ?? []).map(e => e.user_id))
+  const unevaluatedUserIds = allUserIds.filter(id => !evaluatedUserIds.has(id))
+
+  if (unevaluatedUserIds.length === 0) return
+
+  console.log(`Backfilling ${unevaluatedUserIds.length} new user(s) against existing jobs`)
+
+  // Fetch the 100 most recently scraped jobs (excluding ones just evaluated above)
+  let jobsQuery = supabase
+    .from('jobs')
+    .select('id')
+    .order('scraped_at', { ascending: false })
+    .limit(100)
+
+  if (excludeJobIds.length > 0) {
+    jobsQuery = jobsQuery.not('id', 'in', `(${excludeJobIds.join(',')})`)
+  }
+
+  const { data: existingJobs } = await jobsQuery
+  const backfillJobIds = (existingJobs ?? []).map(j => j.id)
+
+  if (backfillJobIds.length === 0) return
+
+  const backfillResult = await evaluateJobsTask.triggerAndWait({
+    jobIds: backfillJobIds,
+    userIds: unevaluatedUserIds,
+  })
+
+  if (!backfillResult.ok) {
+    Sentry.captureException(new Error(`evaluate-jobs backfill failed: ${backfillResult.error}`))
+  }
+}

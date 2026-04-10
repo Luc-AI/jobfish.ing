@@ -64,6 +64,7 @@ export async function getJobFeed(
     .from('job_evaluations')
     .select(`
       id,
+      job_id,
       score,
       reasoning,
       dimensions,
@@ -77,10 +78,6 @@ export async function getJobFeed(
         url,
         source,
         scraped_at
-      ),
-      user_job_actions (
-        status,
-        applied_at
       )
     `)
     .eq('user_id', userId)
@@ -91,7 +88,25 @@ export async function getJobFeed(
     query = query.not('job_id', 'in', `(${hiddenJobIds.join(',')})`)
   }
 
-  return query
+  const { data: evaluations, error } = await query
+  if (error || !evaluations?.length) return { data: evaluations ?? [], error }
+
+  // Fetch user_job_actions separately — no direct FK to job_evaluations exists
+  const jobIds = evaluations.map(e => e.job_id).filter(Boolean) as string[]
+  const { data: actions } = await supabase
+    .from('user_job_actions')
+    .select('job_id, status, applied_at')
+    .eq('user_id', userId)
+    .in('job_id', jobIds)
+
+  const actionsMap = new Map((actions ?? []).map(a => [a.job_id, a]))
+
+  const merged = evaluations.map(e => ({
+    ...e,
+    user_job_actions: actionsMap.get(e.job_id) ?? null,
+  }))
+
+  return { data: merged, error: null }
 }
 
 export async function upsertJobAction(

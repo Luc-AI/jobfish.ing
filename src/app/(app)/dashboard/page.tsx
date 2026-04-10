@@ -20,7 +20,8 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   const page = Math.max(1, Number(params.page ?? 1))
   const pageSize = 20
 
-  const { data: evaluations } = await getJobFeed(user.id, page, pageSize)
+  const { data: evaluations, error: feedError } = await getJobFeed(user.id, page, pageSize)
+  if (feedError) console.error('[dashboard] getJobFeed error:', feedError)
 
   const hasMore = (evaluations?.length ?? 0) === pageSize
 

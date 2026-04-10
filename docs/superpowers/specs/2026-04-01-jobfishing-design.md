@@ -43,7 +43,7 @@ Cron (6h) → scrape-jobs → evaluate-jobs → notify-users
 | UI components | shadcn/ui + Tailwind CSS | Warm, approachable theme. All UI changes use shadcn via MCP. |
 | Database + Auth | Supabase (Postgres + RLS) | Google OAuth via Supabase Auth providers |
 | Background jobs | Trigger.dev cloud (free tier) | ~$0.20–0.50/month actual compute cost; $5 credit included |
-| Scraping | Apify | LinkedIn, Jobs.ch, company career sites |
+| Scraping | Apify | `fantastic-jobs/career-site-job-listing-api` + `fantastic-jobs/advanced-linkedin-job-search-api` |
 | AI evaluation | OpenRouter | Model-agnostic; easy to swap models |
 | Email | Resend + React Email | Notification emails with job card + score + reasoning |
 | Analytics | PostHog | Event-based; tracks key user actions |
@@ -53,9 +53,9 @@ Cron (6h) → scrape-jobs → evaluate-jobs → notify-users
 
 ## 4. Authentication
 
-- **Provider:** Supabase Auth with Google OAuth
+- **Provider:** Supabase Auth with Google OAuth + email/password
 - Google credentials configured in Google Cloud Console → added to Supabase Auth dashboard
-- No email/password auth — Google login only for simplicity
+- Login page offers both: Google OAuth button and email/password form
 - On first login, user is redirected to the onboarding wizard
 - On subsequent logins, user is redirected to `/dashboard`
 - Onboarding completion tracked via `profiles.onboarding_completed` boolean
@@ -128,13 +128,14 @@ All tables have Row Level Security enabled. Users can only read/write their own 
 Three tasks defined in `src/trigger/`, chained via Trigger.dev's `.triggerAndWait()` / `.trigger()` pattern.
 
 ### `scrape-jobs.ts`
-- **Trigger:** Cron schedule, every 6 hours
+- **Trigger:** Cron schedule, every 1 hour
 - **Steps:**
-  1. Call configured Apify actors (LinkedIn Jobs, Jobs.ch, company career sites)
-  2. Receive raw job listings
-  3. Deduplicate against existing `jobs` table by URL
-  4. Insert new jobs into `jobs` table
-  5. Trigger `evaluate-jobs` with the list of new job IDs
+  1. Aggregate all active users' preferences (roles, locations, excluded companies)
+  2. Call two Apify actors in parallel: `fantastic-jobs/career-site-job-listing-api` and `fantastic-jobs/advanced-linkedin-job-search-api` — see `docs/superpowers/specs/2026-04-08-apify-integration-design.md`
+  3. Normalize both outputs through a single function (actors share identical output schema)
+  4. Deduplicate against existing `jobs` table by URL (upsert with ON CONFLICT DO NOTHING)
+  5. Insert new jobs into `jobs` table
+  6. Trigger `evaluate-jobs` with the list of new job IDs
 - **Error handling:** Retry 3× on Apify failure. Log failures to Sentry.
 
 ### `evaluate-jobs.ts`
@@ -164,7 +165,7 @@ Three tasks defined in `src/trigger/`, chained via Trigger.dev's `.triggerAndWai
 ## 7. Frontend — Routes
 
 ### `(auth)`
-- `/login` — Google OAuth button via Supabase `signInWithOAuth`
+- `/login` — Google OAuth button + email/password form via Supabase Auth
 - Post-auth redirect: `/dashboard` (or `/onboarding` if `onboarding_completed = false`)
 
 ### `(onboarding)`
@@ -313,7 +314,6 @@ SENTRY_AUTH_TOKEN=                # For source map upload
 
 ## 13. Out of Scope (MVP)
 
-- Email/password auth
 - LinkedIn OAuth
 - Job search or manual filtering
 - Feedback loops ("was this relevant?")
