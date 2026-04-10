@@ -32,7 +32,7 @@ export interface JobEvaluation {
     source: string
     scraped_at: string
   } | null
-  user_job_actions: {
+  user_job_actions?: {
     status: 'saved' | 'hidden' | 'applied'
     applied_at: string | null
   } | null
