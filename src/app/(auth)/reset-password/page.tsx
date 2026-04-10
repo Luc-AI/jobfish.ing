@@ -54,6 +54,7 @@ export default function ResetPasswordPage() {
                 <Input
                   id="password"
                   type="password"
+                  required
                   value={password}
                   onChange={e => setPassword(e.target.value)}
                 />
