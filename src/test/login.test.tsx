@@ -37,4 +37,11 @@ describe('LoginPage', () => {
     render(<LoginPage />)
     expect(screen.getByRole('tab', { name: /sign up/i })).toBeInTheDocument()
   })
+
+  it('shows forgot password link in sign-in tab', () => {
+    render(<LoginPage />)
+    const link = screen.getByRole('link', { name: /forgot password/i })
+    expect(link).toBeInTheDocument()
+    expect(link).toHaveAttribute('href', '/forgot-password')
+  })
 })
