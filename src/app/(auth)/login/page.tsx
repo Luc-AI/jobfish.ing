@@ -3,6 +3,7 @@
 export const dynamic = 'force-dynamic'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
@@ -130,7 +131,15 @@ export default function LoginPage() {
                   />
                 </div>
                 <div className="space-y-1">
-                  <Label htmlFor="password-signin">Password</Label>
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="password-signin">Password</Label>
+                    <Link
+                      href="/forgot-password"
+                      className="text-xs text-muted-foreground underline underline-offset-4"
+                    >
+                      Forgot password?
+                    </Link>
+                  </div>
                   <Input
                     id="password-signin"
                     type="password"

@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server'
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url)
   const code = searchParams.get('code')
+  const next = searchParams.get('next')
 
   if (!code) {
     return NextResponse.redirect(new URL('/login?error=no_code', origin))
@@ -14,6 +15,11 @@ export async function GET(request: Request) {
 
   if (error) {
     return NextResponse.redirect(new URL('/login?error=auth_failed', origin))
+  }
+
+  // Safe redirect to `next` if it's a valid relative path (prevents open redirect)
+  if (next && next.startsWith('/') && !next.startsWith('//')) {
+    return NextResponse.redirect(new URL(next, origin))
   }
 
   const { data: { user } } = await supabase.auth.getUser()
