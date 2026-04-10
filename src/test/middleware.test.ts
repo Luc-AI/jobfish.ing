@@ -4,7 +4,7 @@ import { describe, it, expect } from 'vitest'
 // (Next.js middleware is not easily unit-testable)
 
 describe('middleware route rules', () => {
-  const PUBLIC_PATHS = ['/login', '/auth/callback']
+  const PUBLIC_PATHS = ['/login', '/auth/callback', '/forgot-password', '/reset-password']
   const PROTECTED_PATHS = ['/dashboard', '/preferences', '/notifications', '/onboarding']
 
   function isPublicPath(pathname: string) {
@@ -25,5 +25,13 @@ describe('middleware route rules', () => {
 
   it('marks /preferences as protected', () => {
     expect(isPublicPath('/preferences')).toBe(false)
+  })
+
+  it('marks /forgot-password as public', () => {
+    expect(isPublicPath('/forgot-password')).toBe(true)
+  })
+
+  it('marks /reset-password as public', () => {
+    expect(isPublicPath('/reset-password')).toBe(true)
   })
 })
