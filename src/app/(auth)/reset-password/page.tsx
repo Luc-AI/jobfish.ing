@@ -24,6 +24,7 @@ export default function ResetPasswordPage() {
       setLoading(false)
       return
     }
+    setLoading(false)
     router.push('/dashboard')
   }
 
