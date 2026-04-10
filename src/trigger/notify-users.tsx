@@ -15,6 +15,18 @@ const SOURCE_LABELS: Record<string, string> = {
   company_site: 'Company',
 }
 
+/*
+ * Current delivery model:
+ * - Each qualifying job evaluation is delivered as its own email.
+ * - The task loops evaluation-by-evaluation, renders a single job notification,
+ *   and marks that evaluation as notified after a successful send.
+ *
+ * Digest refactor note:
+ * - The next iteration will likely group multiple qualifying evaluations into a
+ *   single digest per user instead of one message per evaluation.
+ * - Existing behavior should remain one email per qualifying evaluation until
+ *   the digest refactor changes the delivery unit on purpose.
+ */
 export const notifyUsersTask = task({
   id: 'notify-users',
   retry: { maxAttempts: 2 },
@@ -26,8 +38,8 @@ export const notifyUsersTask = task({
     const resend = new Resend(apiKey)
     const supabase = createServiceClient()
 
-    // Fetch evaluations that are above threshold and not yet notified
-    const { data: evaluations } = await supabase
+    // Fetch candidate evaluations that are not yet notified
+    const { data: evaluations, error: evaluationsError } = await supabase
       .from('job_evaluations')
       .select(`
         id,
@@ -46,17 +58,25 @@ export const notifyUsersTask = task({
       .in('id', evaluationIds)
       .is('notified_at', null)
 
+    if (evaluationsError) {
+      throw evaluationsError
+    }
+
     if (!evaluations?.length) {
       console.log('No evaluations to notify about')
-      return
+      return { notifiedCount: 0 }
     }
 
     // Fetch profiles for qualifying users (two-query approach to avoid join type issues)
     const userIds = [...new Set(evaluations.map((e) => e.user_id))]
-    const { data: profiles } = await supabase
+    const { data: profiles, error: profilesError } = await supabase
       .from('profiles')
       .select('id, threshold, notifications_enabled')
       .in('id', userIds)
+
+    if (profilesError) {
+      throw profilesError
+    }
 
     const profileMap = new Map((profiles ?? []).map((p) => [p.id, p]))
 
@@ -107,11 +127,16 @@ export const notifyUsersTask = task({
           continue
         }
 
-        // Mark as notified only on successful send
-        await supabase
+        // Mark as notified only on successful send and persistence update.
+        const { error: updateError } = await supabase
           .from('job_evaluations')
           .update({ notified_at: new Date().toISOString() })
           .eq('id', evaluation.id)
+
+        if (updateError) {
+          Sentry.captureException(updateError, { extra: { evaluationId: evaluation.id } })
+          continue
+        }
 
         notifiedCount++
       } catch (err) {
