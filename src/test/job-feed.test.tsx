@@ -7,7 +7,7 @@ const mockEvaluations = [
     id: 'eval-1',
     score: 9.0,
     reasoning: 'Excellent match.',
-    dimensions: { role_fit: 9.0, company_fit: 9.0, location: 9.0, growth_potential: 9.0 },
+    dimensions: { role_fit: 9.0, domain_fit: 9.0, experience_fit: 9.0, location_fit: 9.0, upside: 9.0 },
     notified_at: null,
     created_at: new Date().toISOString(),
     jobs: {

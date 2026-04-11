@@ -76,7 +76,7 @@ describe('notifyUsersTask', () => {
   })
 
   it('is configured to avoid automatic retries after a post-send failure', () => {
-    expect(notifyUsersTask.retry).toEqual({ maxAttempts: 1 })
+    expect((notifyUsersTask as any).retry).toEqual({ maxAttempts: 1 })
   })
 
   it('builds digests from array-shaped job relations and skips null jobs', () => {
@@ -253,7 +253,7 @@ describe('notifyUsersTask', () => {
       },
     })
 
-    const result = await notifyUsersTask.run()
+    const result = await (notifyUsersTask as any).run()
 
     expect(result).toEqual({ notifiedCount: 2, evaluationCount: 3 })
     expect(mockJobEvaluationsSelect).toHaveBeenCalledWith(expect.stringContaining('created_at'))
@@ -374,7 +374,7 @@ describe('notifyUsersTask', () => {
       },
     })
 
-    const result = await notifyUsersTask.run()
+    const result = await (notifyUsersTask as any).run()
 
     expect(result).toEqual({ notifiedCount: 0, evaluationCount: 0 })
     expect(mockSend).toHaveBeenCalledTimes(1)
@@ -444,7 +444,7 @@ describe('notifyUsersTask', () => {
       },
     })
 
-    await expect(notifyUsersTask.run()).rejects.toThrow('update failed')
+    await expect((notifyUsersTask as any).run()).rejects.toThrow('update failed')
 
     expect(mockSend).toHaveBeenCalledTimes(1)
     expect(mockEvaluationUpdate).toHaveBeenCalledTimes(1)
@@ -516,7 +516,7 @@ describe('notifyUsersTask', () => {
       },
     })
 
-    await expect(notifyUsersTask.run()).rejects.toThrow('Missing email for digest recipient')
+    await expect((notifyUsersTask as any).run()).rejects.toThrow('Missing email for digest recipient')
 
     expect(mockSend).not.toHaveBeenCalled()
     expect(mockEvaluationUpdate).not.toHaveBeenCalled()
@@ -555,7 +555,7 @@ describe('notifyUsersTask', () => {
       },
     })
 
-    const result = await notifyUsersTask.run()
+    const result = await (notifyUsersTask as any).run()
 
     expect(result).toEqual({ notifiedCount: 0, evaluationCount: 0 })
     expect(mockProfilesSelect).not.toHaveBeenCalled()

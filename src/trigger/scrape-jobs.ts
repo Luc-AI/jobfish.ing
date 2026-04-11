@@ -2,6 +2,7 @@ import { schedules } from '@trigger.dev/sdk'
 import * as Sentry from '@sentry/node'
 import { createServiceClient } from '@/lib/supabase/service'
 import { scrapeAll, type NormalizedJob } from './lib/apify'
+import type { Json } from '@/lib/supabase/types'
 import { evaluateJobsTask } from './evaluate-jobs'
 
 export const scrapeJobsTask = schedules.task({
@@ -68,7 +69,7 @@ export const scrapeJobsTask = schedules.task({
           job_language: j.job_language,
           working_hours: j.working_hours,
           source_domain: j.source_domain,
-          detail_facts: j.detail_facts,
+          detail_facts: j.detail_facts as Json | null,
         })),
         { onConflict: 'url', ignoreDuplicates: true }
       )

@@ -9,9 +9,10 @@ const mockEvaluation = {
   reasoning: 'Strong fit because of product background.',
   dimensions: {
     role_fit: 9.0,
-    company_fit: 8.0,
-    location: 9.0,
-    growth_potential: 8.0,
+    domain_fit: 8.0,
+    experience_fit: 9.0,
+    location_fit: 8.0,
+    upside: 8.0,
   },
   notified_at: null,
   created_at: new Date().toISOString(),
