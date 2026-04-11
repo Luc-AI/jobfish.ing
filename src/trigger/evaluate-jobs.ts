@@ -2,7 +2,6 @@ import { task } from '@trigger.dev/sdk'
 import * as Sentry from '@sentry/node'
 import { createServiceClient } from '@/lib/supabase/service'
 import { buildEvaluationPrompt, callOpenRouter, parseEvaluationResponse } from './lib/evaluate'
-import { notifyUsersTask } from './notify-users'
 
 interface EvaluateJobsPayload {
   jobIds: string[]
@@ -57,7 +56,6 @@ export const evaluateJobsTask = task({
     )
 
     let evaluatedCount = 0
-    const evaluationIds: string[] = []
 
     for (const user of profiles) {
       const prefs = prefsMap.get(user.id)
@@ -76,7 +74,7 @@ export const evaluateJobsTask = task({
           })
 
           const rawResponse = await callOpenRouter(prompt)
-          const { score, reasoning, dimensions } = parseEvaluationResponse(rawResponse)
+          const { score, reasoning, dimensions, detailed_reasoning } = parseEvaluationResponse(rawResponse)
 
           const { data: evaluation } = await supabase
             .from('job_evaluations')
@@ -86,12 +84,12 @@ export const evaluateJobsTask = task({
               score,
               reasoning,
               dimensions,
+              detailed_reasoning,
             })
             .select('id')
             .single()
 
           if (evaluation) {
-            evaluationIds.push(evaluation.id)
             evaluatedCount++
           }
         } catch (err) {
@@ -105,9 +103,6 @@ export const evaluateJobsTask = task({
     }
 
     console.log(`Evaluated ${evaluatedCount} job/user pairs`)
-
-    if (evaluationIds.length > 0) {
-      await notifyUsersTask.trigger({ evaluationIds })
-    }
+    return { evaluatedCount }
   },
 })
