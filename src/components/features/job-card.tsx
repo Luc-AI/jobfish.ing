@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { ScoreBadge } from './score-badge'
 import { cn } from '@/lib/utils'
 import { posthog } from '@/lib/posthog'
+import Link from 'next/link'
 
 interface Dimensions {
   role_fit: number
@@ -139,6 +140,9 @@ export function JobCard({ evaluation, onAction }: JobCardProps) {
             }}
           >
             Hide
+          </Button>
+          <Button size="sm" variant="ghost" asChild>
+            <Link href={`/dashboard/jobs/${job.id}`}>View details</Link>
           </Button>
           <div className="flex-1" />
           <Button
