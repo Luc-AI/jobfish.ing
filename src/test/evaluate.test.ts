@@ -105,4 +105,22 @@ describe('parseEvaluationResponse', () => {
     }
     expect(() => parseEvaluationResponse(JSON.stringify(bad))).toThrow()
   })
+
+  it('parses JSON when LLM adds prose before the code block', () => {
+    const raw = 'Here is the evaluation:\n```json\n' + JSON.stringify(validResponse) + '\n```'
+    const result = parseEvaluationResponse(raw)
+    expect(result.score).toBe(8.5)
+  })
+
+  it('parses JSON when LLM adds prose after the code block', () => {
+    const raw = '```json\n' + JSON.stringify(validResponse) + '\n```\nHope this helps!'
+    const result = parseEvaluationResponse(raw)
+    expect(result.score).toBe(8.5)
+  })
+
+  it('parses JSON from a plain fence without json keyword', () => {
+    const raw = '```\n' + JSON.stringify(validResponse) + '\n```'
+    const result = parseEvaluationResponse(raw)
+    expect(result.score).toBe(8.5)
+  })
 })

@@ -73,14 +73,11 @@ Respond with ONLY valid JSON in this exact format:
 }
 
 export function parseEvaluationResponse(raw: string): ScoreResponse {
-  // Strip markdown code blocks if present
-  const cleaned = raw
-    .trim()
-    .replace(/^```(?:json)?\s*/i, '')
-    .replace(/\s*```$/, '')
-    .trim()
+  // Extract JSON from a markdown code block if present, otherwise use the raw string
+  const codeBlockMatch = raw.match(/```(?:json)?\s*([\s\S]*?)```/)
+  const candidate = codeBlockMatch ? codeBlockMatch[1].trim() : raw.trim()
 
-  const parsed = JSON.parse(cleaned)
+  const parsed = JSON.parse(candidate)
   return scoreResponseSchema.parse(parsed)
 }
 
