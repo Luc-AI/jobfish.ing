@@ -94,6 +94,198 @@ describe('normalizeFantasticJob', () => {
     const job = normalizeFantasticJob(raw)
     expect(job!.location).toBe('Basel, Switzerland')
   })
+
+  it('maps employment_type from ai_employment_type', () => {
+    const raw = {
+      title: 'PM',
+      organization: 'Acme',
+      url: 'https://example.com/1',
+      source: 'greenhouse',
+      description_text: null,
+      locations_derived: [],
+      remote_derived: false,
+      ai_employment_type: ['full-time'],
+    }
+    const job = normalizeFantasticJob(raw)
+    expect(job!.employment_type).toEqual(['full-time'])
+  })
+
+  it('maps employment_type from employment_type when ai_employment_type is absent', () => {
+    const raw = {
+      title: 'PM',
+      organization: 'Acme',
+      url: 'https://example.com/2',
+      source: 'greenhouse',
+      description_text: null,
+      locations_derived: [],
+      remote_derived: false,
+      employment_type: ['contract'],
+    }
+    const job = normalizeFantasticJob(raw)
+    expect(job!.employment_type).toEqual(['contract'])
+  })
+
+  it('sets work_arrangement from ai_work_arrangement', () => {
+    const raw = {
+      title: 'PM',
+      organization: 'Acme',
+      url: 'https://example.com/3',
+      source: 'greenhouse',
+      description_text: null,
+      locations_derived: [],
+      remote_derived: false,
+      ai_work_arrangement: 'hybrid',
+    }
+    const job = normalizeFantasticJob(raw)
+    expect(job!.work_arrangement).toBe('hybrid')
+  })
+
+  it('falls back work_arrangement to "remote" when ai_work_arrangement is null and remote_derived is true', () => {
+    const raw = {
+      title: 'PM',
+      organization: 'Acme',
+      url: 'https://example.com/4',
+      source: 'greenhouse',
+      description_text: null,
+      locations_derived: [],
+      remote_derived: true,
+      ai_work_arrangement: null,
+    }
+    const job = normalizeFantasticJob(raw)
+    expect(job!.work_arrangement).toBe('remote')
+  })
+
+  it('maps experience_level from ai_experience_level', () => {
+    const raw = {
+      title: 'PM',
+      organization: 'Acme',
+      url: 'https://example.com/5',
+      source: 'greenhouse',
+      description_text: null,
+      locations_derived: [],
+      remote_derived: false,
+      ai_experience_level: 'senior',
+    }
+    const job = normalizeFantasticJob(raw)
+    expect(job!.experience_level).toBe('senior')
+  })
+
+  it('maps working_hours from ai_working_hours', () => {
+    const raw = {
+      title: 'PM',
+      organization: 'Acme',
+      url: 'https://example.com/6',
+      source: 'greenhouse',
+      description_text: null,
+      locations_derived: [],
+      remote_derived: false,
+      ai_working_hours: 40,
+    }
+    const job = normalizeFantasticJob(raw)
+    expect(job!.working_hours).toBe(40)
+  })
+
+  it('maps source_domain', () => {
+    const raw = {
+      title: 'PM',
+      organization: 'Acme',
+      url: 'https://example.com/7',
+      source: 'greenhouse',
+      description_text: null,
+      locations_derived: [],
+      remote_derived: false,
+      source_domain: 'linkedin.com',
+    }
+    const job = normalizeFantasticJob(raw)
+    expect(job!.source_domain).toBe('linkedin.com')
+  })
+
+  it('builds detail_facts.location_display from locations_derived city, region, and country', () => {
+    const raw = {
+      title: 'PM',
+      organization: 'Acme',
+      url: 'https://example.com/8',
+      source: 'greenhouse',
+      description_text: null,
+      locations_derived: [{ city: 'Olten', region: 'Solothurn', country: 'Switzerland' }],
+      remote_derived: false,
+    }
+    const job = normalizeFantasticJob(raw)
+    expect(job!.detail_facts?.location_display).toBe('Olten, Solothurn, Switzerland')
+  })
+
+  it('builds detail_facts.location_display omitting null segments', () => {
+    const raw = {
+      title: 'PM',
+      organization: 'Acme',
+      url: 'https://example.com/9',
+      source: 'greenhouse',
+      description_text: null,
+      locations_derived: [{ city: 'Zurich', region: null, country: 'Switzerland' }],
+      remote_derived: false,
+    }
+    const job = normalizeFantasticJob(raw)
+    expect(job!.detail_facts?.location_display).toBe('Zurich, Switzerland')
+  })
+
+  it('sets detail_facts.key_skills from ai_key_skills', () => {
+    const raw = {
+      title: 'PM',
+      organization: 'Acme',
+      url: 'https://example.com/10',
+      source: 'greenhouse',
+      description_text: null,
+      locations_derived: [],
+      remote_derived: false,
+      ai_key_skills: ['Roadmapping', 'Stakeholder management'],
+    }
+    const job = normalizeFantasticJob(raw)
+    expect(job!.detail_facts?.key_skills).toEqual(['Roadmapping', 'Stakeholder management'])
+  })
+
+  it('sets detail_facts.core_responsibilities from ai_core_responsibilities', () => {
+    const raw = {
+      title: 'PM',
+      organization: 'Acme',
+      url: 'https://example.com/11',
+      source: 'greenhouse',
+      description_text: null,
+      locations_derived: [],
+      remote_derived: false,
+      ai_core_responsibilities: 'Own the product roadmap.',
+    }
+    const job = normalizeFantasticJob(raw)
+    expect(job!.detail_facts?.core_responsibilities).toBe('Own the product roadmap.')
+  })
+
+  it('sets detail_facts.requirements_summary from ai_requirements_summary', () => {
+    const raw = {
+      title: 'PM',
+      organization: 'Acme',
+      url: 'https://example.com/12',
+      source: 'greenhouse',
+      description_text: null,
+      locations_derived: [],
+      remote_derived: false,
+      ai_requirements_summary: '5+ years experience.',
+    }
+    const job = normalizeFantasticJob(raw)
+    expect(job!.detail_facts?.requirements_summary).toBe('5+ years experience.')
+  })
+
+  it('leaves detail_facts null when no enriched fields are present', () => {
+    const raw = {
+      title: 'PM',
+      organization: 'Acme',
+      url: 'https://example.com/13',
+      source: 'greenhouse',
+      description_text: null,
+      locations_derived: [],
+      remote_derived: false,
+    }
+    const job = normalizeFantasticJob(raw)
+    expect(job!.detail_facts).toBeNull()
+  })
 })
 
 describe('buildApifyInput', () => {

@@ -31,6 +31,15 @@ const LOCATION_MAP: Record<string, string> = {
   'San Francisco': 'San Francisco, United States',
 }
 
+export interface DetailFacts {
+  location_display?: string
+  key_skills?: string[]
+  core_responsibilities?: string
+  requirements_summary?: string
+  education_requirements?: string[]
+  keywords?: string[]
+}
+
 export interface NormalizedJob {
   title: string
   company: string
@@ -38,6 +47,14 @@ export interface NormalizedJob {
   url: string
   source: string
   description: string | null
+  date_posted: string | null
+  employment_type: string[] | null
+  work_arrangement: string | null
+  experience_level: string | null
+  job_language: string | null
+  working_hours: number | null
+  source_domain: string | null
+  detail_facts: DetailFacts | null
 }
 
 export interface ApifyInput {
@@ -96,7 +113,12 @@ export function normalizeFantasticJob(raw: Record<string, unknown>): NormalizedJ
 
   if (!url || !title || !org) return null
 
-  const derived = raw.locations_derived as Array<{ city?: string; country?: string }> | undefined
+  const derived = raw.locations_derived as Array<{
+    city?: string | null
+    region?: string | null
+    country?: string | null
+  }> | undefined
+
   let location = 'Unknown'
 
   if (derived?.[0]?.city && derived[0]?.country) {
@@ -107,13 +129,59 @@ export function normalizeFantasticJob(raw: Record<string, unknown>): NormalizedJ
     location = (raw.locations_alt_raw as string[] | undefined)?.[0] ?? 'Unknown'
   }
 
+  const aiArrangement = raw.ai_work_arrangement as string | null | undefined
+  const work_arrangement = aiArrangement ?? (raw.remote_derived ? 'remote' : null)
+
+  const firstDerived = derived?.[0]
+  const locationDisplay = firstDerived
+    ? [firstDerived.city, firstDerived.region, firstDerived.country]
+        .filter((s): s is string => typeof s === 'string' && s.length > 0)
+        .join(', ') || undefined
+    : undefined
+
+  const keySkills = raw.ai_key_skills as string[] | undefined
+  const coreResp = raw.ai_core_responsibilities as string | undefined
+  const reqSummary = raw.ai_requirements_summary as string | undefined
+  const eduReqs = raw.ai_education_requirements as string[] | undefined
+  const keywords = raw.ai_keywords as string[] | undefined
+
+  const hasDetailFacts =
+    locationDisplay ||
+    keySkills?.length ||
+    coreResp ||
+    reqSummary ||
+    eduReqs?.length ||
+    keywords?.length
+
+  const detail_facts: DetailFacts | null = hasDetailFacts
+    ? {
+        ...(locationDisplay ? { location_display: locationDisplay } : {}),
+        ...(keySkills?.length ? { key_skills: keySkills } : {}),
+        ...(coreResp ? { core_responsibilities: coreResp } : {}),
+        ...(reqSummary ? { requirements_summary: reqSummary } : {}),
+        ...(eduReqs?.length ? { education_requirements: eduReqs } : {}),
+        ...(keywords?.length ? { keywords } : {}),
+      }
+    : null
+
   return {
     title,
     company: org,
     location,
     url,
-    source: ((raw.source as string | undefined) || 'unknown'),
+    source: (raw.source as string | undefined) || 'unknown',
     description: (raw.description_text as string | undefined) ?? null,
+    date_posted: (raw.date_posted as string | undefined) ?? null,
+    employment_type:
+      (raw.ai_employment_type as string[] | undefined) ??
+      (raw.employment_type as string[] | undefined) ??
+      null,
+    work_arrangement: work_arrangement ?? null,
+    experience_level: (raw.ai_experience_level as string | undefined) ?? null,
+    job_language: (raw.ai_job_language as string | undefined) ?? null,
+    working_hours: (raw.ai_working_hours as number | undefined) ?? null,
+    source_domain: (raw.source_domain as string | undefined) ?? null,
+    detail_facts,
   }
 }
 
