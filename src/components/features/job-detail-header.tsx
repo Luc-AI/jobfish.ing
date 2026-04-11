@@ -32,10 +32,10 @@ export function JobDetailHeader({ job, score, action, onAction }: JobDetailHeade
           <h1 className="text-2xl font-bold tracking-tight">{job.title}</h1>
           <div className="flex items-center gap-3 mt-1 text-sm text-muted-foreground flex-wrap">
             <span className="font-medium text-foreground">{job.company}</span>
-            {job.location && (
+            {(job.detail_facts?.location_display ?? job.location) && (
               <span className="flex items-center gap-1">
                 <MapPin className="h-3 w-3" />
-                {job.location}
+                {job.detail_facts?.location_display ?? job.location}
               </span>
             )}
           </div>
