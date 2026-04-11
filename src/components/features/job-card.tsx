@@ -11,9 +11,10 @@ import { posthog } from '@/lib/posthog'
 
 interface Dimensions {
   role_fit: number
-  company_fit: number
-  location: number
-  growth_potential: number
+  domain_fit: number
+  experience_fit: number
+  location_fit: number
+  upside: number
 }
 
 export interface JobEvaluation {
@@ -85,7 +86,7 @@ export function JobCard({ evaluation, onAction }: JobCardProps) {
         </div>
 
         {evaluation.dimensions && (
-          <div className="grid grid-cols-4 gap-2 mt-4">
+          <div className="grid grid-cols-5 gap-2 mt-4">
             {Object.entries(evaluation.dimensions).map(([key, val]) => (
               <div key={key} className="text-center">
                 <p className="text-xs text-muted-foreground capitalize">

@@ -43,9 +43,24 @@ describe('evaluateJobsTask', () => {
       reasoning: 'Great fit',
       dimensions: {
         role_fit: 9,
-        company_fit: 8,
-        location: 8,
-        growth_potential: 9,
+        domain_fit: 8,
+        experience_fit: 8,
+        location_fit: 7,
+        upside: 8,
+      },
+      detailed_reasoning: {
+        summary: 'Strong overall fit.',
+        strengths: ['Good role overlap'],
+        concerns: ['Some ramp-up needed'],
+        red_flags: [],
+        recommendation: 'Worth applying.',
+        dimension_explanations: {
+          role_fit: 'Scope matches well.',
+          domain_fit: 'Some ramp-up needed.',
+          experience_fit: 'Seniority aligned.',
+          location_fit: 'Acceptable.',
+          upside: 'Good growth potential.',
+        },
       },
     })
 
