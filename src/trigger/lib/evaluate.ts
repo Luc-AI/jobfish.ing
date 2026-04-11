@@ -50,9 +50,24 @@ Respond with ONLY valid JSON in this exact format:
   "reasoning": "<2-3 sentence plain-language explanation for the candidate>",
   "dimensions": {
     "role_fit": <number 0.0-10.0>,
-    "company_fit": <number 0.0-10.0>,
-    "location": <number 0.0-10.0>,
-    "growth_potential": <number 0.0-10.0>
+    "domain_fit": <number 0.0-10.0>,
+    "experience_fit": <number 0.0-10.0>,
+    "location_fit": <number 0.0-10.0>,
+    "upside": <number 0.0-10.0>
+  },
+  "detailed_reasoning": {
+    "summary": "<1-2 sentence overall assessment>",
+    "strengths": ["<strength 1>", "<strength 2>"],
+    "concerns": ["<concern 1>"],
+    "red_flags": [],
+    "recommendation": "<one sentence action recommendation>",
+    "dimension_explanations": {
+      "role_fit": "<one sentence>",
+      "domain_fit": "<one sentence>",
+      "experience_fit": "<one sentence>",
+      "location_fit": "<one sentence>",
+      "upside": "<one sentence>"
+    }
   }
 }`
 }
