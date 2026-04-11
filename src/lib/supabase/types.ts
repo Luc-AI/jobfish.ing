@@ -124,6 +124,7 @@ export type Database = {
           score: number
           reasoning: string | null
           dimensions: Json | null
+          detailed_reasoning: Json | null
           notified_at: string | null
           created_at: string
         }
@@ -134,6 +135,7 @@ export type Database = {
           score: number
           reasoning?: string | null
           dimensions?: Json | null
+          detailed_reasoning?: Json | null
           notified_at?: string | null
           created_at?: string
         }
@@ -144,6 +146,7 @@ export type Database = {
           score?: number
           reasoning?: string | null
           dimensions?: Json | null
+          detailed_reasoning?: Json | null
           notified_at?: string | null
           created_at?: string
         }
