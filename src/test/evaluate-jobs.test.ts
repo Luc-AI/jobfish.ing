@@ -131,7 +131,8 @@ describe('evaluateJobsTask', () => {
   })
 
   it('evaluates jobs without triggering notify-users directly', async () => {
-    const result = await evaluateJobsTask.run({ jobIds: ['job-1'] })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const result = await (evaluateJobsTask as any).run({ jobIds: ['job-1'] })
 
     expect(result).toEqual({ evaluatedCount: 1 })
     expect(mockNotifyTrigger).not.toHaveBeenCalled()
