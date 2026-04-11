@@ -1,5 +1,6 @@
 'use client'
 
+import { useTransition } from 'react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { ScoreBadge } from './score-badge'
@@ -11,11 +12,18 @@ interface JobDetailHeaderProps {
   job: JobDetailData['job']
   score: number | null
   action: JobDetailData['action']
-  onAction: (jobId: string, status: 'saved' | 'hidden' | 'applied') => void
+  onAction: (jobId: string, status: 'saved' | 'hidden' | 'applied') => Promise<void>
 }
 
 export function JobDetailHeader({ job, score, action, onAction }: JobDetailHeaderProps) {
+  const [isPending, startTransition] = useTransition()
   const currentStatus = action?.status
+
+  function handleAction(status: 'saved' | 'hidden' | 'applied') {
+    startTransition(() => {
+      onAction(job.id, status)
+    })
+  }
 
   const chips: { label: string; value: string }[] = [
     job.work_arrangement ? { label: 'arrangement', value: job.work_arrangement } : null,
@@ -46,7 +54,7 @@ export function JobDetailHeader({ job, score, action, onAction }: JobDetailHeade
       {chips.length > 0 && (
         <div className="flex flex-wrap gap-2">
           {chips.map(chip => (
-            <Badge key={chip.value} variant="secondary" className="capitalize">
+            <Badge key={`${chip.label}-${chip.value}`} variant="secondary" className="capitalize">
               {chip.value}
             </Badge>
           ))}
@@ -57,7 +65,8 @@ export function JobDetailHeader({ job, score, action, onAction }: JobDetailHeade
         <Button
           size="sm"
           variant="outline"
-          onClick={() => onAction(job.id, 'saved')}
+          disabled={isPending}
+          onClick={() => handleAction('saved')}
           className={cn(currentStatus === 'saved' && 'border-primary')}
         >
           Save
@@ -65,12 +74,13 @@ export function JobDetailHeader({ job, score, action, onAction }: JobDetailHeade
         <Button
           size="sm"
           variant="outline"
-          onClick={() => onAction(job.id, 'hidden')}
+          disabled={isPending}
+          onClick={() => handleAction('hidden')}
         >
           Hide
         </Button>
         <div className="flex-1" />
-        <Button size="sm" asChild onClick={() => onAction(job.id, 'applied')}>
+        <Button size="sm" asChild disabled={isPending} onClick={() => handleAction('applied')}>
           <a href={job.url} target="_blank" rel="noopener noreferrer">
             Apply <ExternalLink className="h-3 w-3 ml-1" />
           </a>
