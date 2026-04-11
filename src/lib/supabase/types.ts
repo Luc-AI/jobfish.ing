@@ -93,6 +93,14 @@ export type Database = {
           source: string
           description: string | null
           scraped_at: string
+          date_posted: string | null
+          employment_type: string[] | null
+          work_arrangement: string | null
+          experience_level: string | null
+          job_language: string | null
+          working_hours: number | null
+          source_domain: string | null
+          detail_facts: Json | null
         }
         Insert: {
           id?: string
@@ -103,6 +111,14 @@ export type Database = {
           source: string
           description?: string | null
           scraped_at?: string
+          date_posted?: string | null
+          employment_type?: string[] | null
+          work_arrangement?: string | null
+          experience_level?: string | null
+          job_language?: string | null
+          working_hours?: number | null
+          source_domain?: string | null
+          detail_facts?: Json | null
         }
         Update: {
           id?: string
@@ -113,6 +129,14 @@ export type Database = {
           source?: string
           description?: string | null
           scraped_at?: string
+          date_posted?: string | null
+          employment_type?: string[] | null
+          work_arrangement?: string | null
+          experience_level?: string | null
+          job_language?: string | null
+          working_hours?: number | null
+          source_domain?: string | null
+          detail_facts?: Json | null
         }
         Relationships: []
       }
