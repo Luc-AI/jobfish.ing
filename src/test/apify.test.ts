@@ -286,6 +286,81 @@ describe('normalizeFantasticJob', () => {
     const job = normalizeFantasticJob(raw)
     expect(job!.detail_facts).toBeNull()
   })
+
+  it('maps job_language from ai_job_language', () => {
+    const raw = {
+      title: 'PM',
+      organization: 'Acme',
+      url: 'https://example.com/14',
+      source: 'greenhouse',
+      description_text: null,
+      locations_derived: [],
+      remote_derived: false,
+      ai_job_language: 'English',
+    }
+    const job = normalizeFantasticJob(raw)
+    expect(job!.job_language).toBe('English')
+  })
+
+  it('sets detail_facts.education_requirements from ai_education_requirements', () => {
+    const raw = {
+      title: 'PM',
+      organization: 'Acme',
+      url: 'https://example.com/15',
+      source: 'greenhouse',
+      description_text: null,
+      locations_derived: [],
+      remote_derived: false,
+      ai_education_requirements: ['postgraduate degree'],
+    }
+    const job = normalizeFantasticJob(raw)
+    expect(job!.detail_facts?.education_requirements).toEqual(['postgraduate degree'])
+  })
+
+  it('sets detail_facts.keywords from ai_keywords', () => {
+    const raw = {
+      title: 'PM',
+      organization: 'Acme',
+      url: 'https://example.com/16',
+      source: 'greenhouse',
+      description_text: null,
+      locations_derived: [],
+      remote_derived: false,
+      ai_keywords: ['Product Manager', 'SaaS'],
+    }
+    const job = normalizeFantasticJob(raw)
+    expect(job!.detail_facts?.keywords).toEqual(['Product Manager', 'SaaS'])
+  })
+
+  it('sets work_arrangement to null when ai_work_arrangement is absent and remote_derived is false', () => {
+    const raw = {
+      title: 'PM',
+      organization: 'Acme',
+      url: 'https://example.com/17',
+      source: 'greenhouse',
+      description_text: null,
+      locations_derived: [],
+      remote_derived: false,
+    }
+    const job = normalizeFantasticJob(raw)
+    expect(job!.work_arrangement).toBeNull()
+  })
+
+  it('falls back employment_type to raw field when ai_employment_type is explicitly null', () => {
+    const raw = {
+      title: 'PM',
+      organization: 'Acme',
+      url: 'https://example.com/18',
+      source: 'greenhouse',
+      description_text: null,
+      locations_derived: [],
+      remote_derived: false,
+      ai_employment_type: null,
+      employment_type: ['part-time'],
+    }
+    const job = normalizeFantasticJob(raw)
+    expect(job!.employment_type).toEqual(['part-time'])
+  })
 })
 
 describe('buildApifyInput', () => {
