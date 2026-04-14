@@ -127,3 +127,111 @@ export async function upsertJobAction(
       { onConflict: 'user_id,job_id' }
     )
 }
+
+export interface JobDetailData {
+  job: {
+    id: string
+    title: string
+    company: string
+    location: string | null
+    url: string
+    source: string
+    description: string | null
+    scraped_at: string
+    date_posted: string | null
+    employment_type: string[] | null
+    work_arrangement: string | null
+    experience_level: string | null
+    job_language: string | null
+    working_hours: number | null
+    source_domain: string | null
+    detail_facts: {
+      location_display?: string
+      key_skills?: string[]
+      core_responsibilities?: string
+      requirements_summary?: string
+      education_requirements?: string[]
+      keywords?: string[]
+    } | null
+  }
+  evaluation: {
+    id: string
+    score: number
+    reasoning: string | null
+    dimensions: {
+      role_fit: number
+      domain_fit: number
+      experience_fit: number
+      location_fit: number
+      upside: number
+    } | null
+    detailed_reasoning: {
+      summary: string
+      strengths: string[]
+      concerns: string[]
+      red_flags: string[]
+      recommendation: string
+      dimension_explanations: {
+        role_fit: string
+        domain_fit: string
+        experience_fit: string
+        location_fit: string
+        upside: string
+      }
+    } | null
+  } | null
+  action: {
+    status: 'saved' | 'hidden' | 'applied'
+    applied_at: string | null
+  } | null
+}
+
+export async function getJobDetail(
+  userId: string,
+  jobId: string
+): Promise<JobDetailData | null> {
+  const supabase = await createClient()
+
+  const { data: job, error: jobError } = await supabase
+    .from('jobs')
+    .select(`
+      id, title, company, location, url, source, description, scraped_at,
+      date_posted, employment_type, work_arrangement, experience_level,
+      job_language, working_hours, source_domain, detail_facts
+    `)
+    .eq('id', jobId)
+    .single()
+
+  if (jobError || !job) return null
+
+  const { data: evaluation } = await supabase
+    .from('job_evaluations')
+    .select('id, score, reasoning, dimensions, detailed_reasoning')
+    .eq('job_id', jobId)
+    .eq('user_id', userId)
+    .maybeSingle()
+
+  const { data: action } = await supabase
+    .from('user_job_actions')
+    .select('status, applied_at')
+    .eq('job_id', jobId)
+    .eq('user_id', userId)
+    .maybeSingle()
+
+  // Return notFound signal if user has hidden this job
+  if (action?.status === 'hidden') return null
+
+  return {
+    job: job as JobDetailData['job'],
+    evaluation: evaluation
+      ? {
+          id: evaluation.id,
+          score: evaluation.score,
+          reasoning: evaluation.reasoning,
+          dimensions: evaluation.dimensions as NonNullable<JobDetailData['evaluation']>['dimensions'],
+          detailed_reasoning: evaluation.detailed_reasoning as NonNullable<JobDetailData['evaluation']>['detailed_reasoning'],
+        }
+      : null,
+    action: action ? { status: action.status as 'saved' | 'hidden' | 'applied', applied_at: action.applied_at } : null,
+  }
+}

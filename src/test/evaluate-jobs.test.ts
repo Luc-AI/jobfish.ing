@@ -43,9 +43,24 @@ describe('evaluateJobsTask', () => {
       reasoning: 'Great fit',
       dimensions: {
         role_fit: 9,
-        company_fit: 8,
-        location: 8,
-        growth_potential: 9,
+        domain_fit: 8,
+        experience_fit: 8,
+        location_fit: 7,
+        upside: 8,
+      },
+      detailed_reasoning: {
+        summary: 'Strong overall fit.',
+        strengths: ['Good role overlap'],
+        concerns: ['Some ramp-up needed'],
+        red_flags: [],
+        recommendation: 'Worth applying.',
+        dimension_explanations: {
+          role_fit: 'Scope matches well.',
+          domain_fit: 'Some ramp-up needed.',
+          experience_fit: 'Seniority aligned.',
+          location_fit: 'Acceptable.',
+          upside: 'Good growth potential.',
+        },
       },
     })
 
@@ -116,7 +131,8 @@ describe('evaluateJobsTask', () => {
   })
 
   it('evaluates jobs without triggering notify-users directly', async () => {
-    const result = await evaluateJobsTask.run({ jobIds: ['job-1'] })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const result = await (evaluateJobsTask as any).run({ jobIds: ['job-1'] })
 
     expect(result).toEqual({ evaluatedCount: 1 })
     expect(mockNotifyTrigger).not.toHaveBeenCalled()

@@ -74,7 +74,7 @@ export const evaluateJobsTask = task({
           })
 
           const rawResponse = await callOpenRouter(prompt)
-          const { score, reasoning, dimensions } = parseEvaluationResponse(rawResponse)
+          const { score, reasoning, dimensions, detailed_reasoning } = parseEvaluationResponse(rawResponse)
 
           const { data: evaluation } = await supabase
             .from('job_evaluations')
@@ -84,6 +84,7 @@ export const evaluateJobsTask = task({
               score,
               reasoning,
               dimensions,
+              detailed_reasoning,
             })
             .select('id')
             .single()
