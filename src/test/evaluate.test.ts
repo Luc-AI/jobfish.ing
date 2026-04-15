@@ -7,7 +7,7 @@ const baseInput = {
   jobCompany: 'Acme Corp',
   jobDescription: 'We are looking for...',
   cvText: 'My background includes...',
-  targetRoles: [{ role: 'Product Manager', minYoe: 2, maxYoe: 5 }] as RoleSelection[],
+  targetRoles: [{ role: 'Product Manager', yoe: 3 }] as RoleSelection[],
   industries: ['Fintech'],
   locations: ['Zurich'],
   excludedCompanies: [],
@@ -70,15 +70,15 @@ describe('buildEvaluationPrompt', () => {
 
   it('includes YoE hint in the prompt', () => {
     const prompt = buildEvaluationPrompt(baseInput)
-    expect(prompt).toContain('Product Manager: 2–5 yrs')
+    expect(prompt).toContain('Product Manager: 3+ yrs')
   })
 
-  it('renders maxYoe 0 as "any" in the YoE hint', () => {
+  it('renders yoe 0 as "any" in the YoE hint', () => {
     const input = {
       ...baseInput,
-      targetRoles: [{ role: 'Product Manager', minYoe: 0, maxYoe: 0 }] as RoleSelection[],
+      targetRoles: [{ role: 'Product Manager', yoe: 0 }] as RoleSelection[],
     }
-    expect(buildEvaluationPrompt(input)).toContain('Product Manager: 0–any yrs')
+    expect(buildEvaluationPrompt(input)).toContain('Product Manager: any yrs')
   })
 })
 

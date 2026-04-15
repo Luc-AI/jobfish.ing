@@ -13,8 +13,7 @@ export type Json =
 
 export type RoleSelection = {
   role: string
-  minYoe: number
-  maxYoe: number
+  yoe: number
 }
 
 export type Database = {
