@@ -11,24 +11,56 @@ interface RolePickerProps {
   onChange: (value: RoleSelection[]) => void
 }
 
+/**
+ * Normalizes whatever the DB returns into a clean RoleSelection[].
+ * Handles three formats gracefully:
+ *   - Legacy string[]         e.g. "Product Manager"
+ *   - Old object {role, minYoe, maxYoe}
+ *   - Current object {role, yoe}
+ */
+function normalize(raw: unknown[]): RoleSelection[] {
+  return raw.flatMap((item) => {
+    if (typeof item === 'string') {
+      const role = item.trim()
+      return role ? [{ role, yoe: 0 }] : []
+    }
+    if (item && typeof item === 'object') {
+      const r = item as Record<string, unknown>
+      const role = typeof r.role === 'string' ? r.role.trim() : ''
+      if (!role) return []
+      const yoe =
+        typeof r.yoe === 'number' ? r.yoe
+        : typeof r.minYoe === 'number' ? r.minYoe
+        : 0
+      return [{ role, yoe }]
+    }
+    return []
+  })
+}
+
 export function RolePicker({ value, onChange }: RolePickerProps) {
   const [activeCategory, setActiveCategory] = useState<string | null>(null)
 
-  const selectedRoles = new Set(value.map((r) => r.role))
+  const normalized = normalize(value)
+  const selectedRoles = new Set(normalized.map((r) => r.role))
   const activeCategoryData = ROLE_TAXONOMY.find((c) => c.id === activeCategory)
+
+  function emit(next: RoleSelection[]) {
+    onChange(next)
+  }
 
   function toggleRole(role: string) {
     if (selectedRoles.has(role)) {
-      onChange(value.filter((r) => r.role !== role))
+      emit(normalized.filter((r) => r.role !== role))
     } else {
-      onChange([...value, { role, minYoe: 0, maxYoe: 0 }])
+      emit([...normalized, { role, yoe: 0 }])
     }
   }
 
-  function updateYoe(role: string, field: 'minYoe' | 'maxYoe', delta: number) {
-    onChange(
-      value.map((r) =>
-        r.role !== role ? r : { ...r, [field]: Math.max(0, r[field] + delta) }
+  function updateYoe(role: string, delta: number) {
+    emit(
+      normalized.map((r) =>
+        r.role !== role ? r : { ...r, yoe: Math.max(0, r.yoe + delta) }
       )
     )
   }
@@ -47,9 +79,9 @@ export function RolePicker({ value, onChange }: RolePickerProps) {
           <LayoutGrid className="h-3.5 w-3.5" />
           ROLES
         </span>
-        {value.length > 0 && (
+        {normalized.length > 0 && (
           <span className="text-xs font-semibold text-primary">
-            {value.length} SELECTED
+            {normalized.length} SELECTED
           </span>
         )}
       </div>
@@ -121,25 +153,16 @@ export function RolePicker({ value, onChange }: RolePickerProps) {
       )}
 
       {/* YoE section */}
-      {value.length > 0 && (
+      {normalized.length > 0 && (
         <div className="space-y-2 pt-1">
           <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             <Clock className="h-3.5 w-3.5" />
             YEARS OF EXPERIENCE
           </p>
-          {value.map((r) => (
+          {normalized.map((r) => (
             <div key={r.role} className="flex items-center gap-3 text-sm">
               <span className="flex-1 truncate">{r.role}</span>
-              <span className="text-xs text-muted-foreground">min</span>
-              <Counter
-                value={r.minYoe}
-                onChange={(delta) => updateYoe(r.role, 'minYoe', delta)}
-              />
-              <span className="text-xs text-muted-foreground">max</span>
-              <Counter
-                value={r.maxYoe}
-                onChange={(delta) => updateYoe(r.role, 'maxYoe', delta)}
-              />
+              <Counter value={r.yoe} onChange={(delta) => updateYoe(r.role, delta)} />
             </div>
           ))}
         </div>

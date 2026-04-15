@@ -62,6 +62,7 @@ export const ROLE_TAXONOMY: RoleCategory[] = [
         label: null,
         roles: [
           'Product Manager',
+          'Product Owner',
           'Technical Product Manager',
           'Product Designer',
           'UX Researcher',

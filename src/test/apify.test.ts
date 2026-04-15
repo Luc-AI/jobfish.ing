@@ -366,8 +366,8 @@ describe('normalizeFantasticJob', () => {
 describe('buildApifyInput', () => {
   it('merges target_roles from all preferences into titleSearch', () => {
     const prefs = [
-      { target_roles: [{ role: 'Head of Product', minYoe: 0, maxYoe: 10 }, { role: 'VP Product', minYoe: 0, maxYoe: 15 }], locations: ['Zurich'], excluded_companies: [] },
-      { target_roles: [{ role: 'Head of Product', minYoe: 0, maxYoe: 10 }, { role: 'COO', minYoe: 0, maxYoe: 20 }], locations: ['Berlin'], excluded_companies: [] },
+      { target_roles: [{ role: 'Head of Product', yoe: 0 }, { role: 'VP Product', yoe: 0 }], locations: ['Zurich'], excluded_companies: [] },
+      { target_roles: [{ role: 'Head of Product', yoe: 0 }, { role: 'COO', yoe: 0 }], locations: ['Berlin'], excluded_companies: [] },
     ]
     const input = buildApifyInput(prefs)
     expect(input.titleSearch).toContain('Head of Product')
@@ -379,8 +379,8 @@ describe('buildApifyInput', () => {
 
   it('maps and deduplicates locations, strips Remote', () => {
     const prefs = [
-      { target_roles: [{ role: 'Engineer', minYoe: 0, maxYoe: 10 }], locations: ['Zurich', 'Remote'], excluded_companies: [] },
-      { target_roles: [{ role: 'Engineer', minYoe: 0, maxYoe: 10 }], locations: ['Zurich', 'Berlin'], excluded_companies: [] },
+      { target_roles: [{ role: 'Engineer', yoe: 0 }], locations: ['Zurich', 'Remote'], excluded_companies: [] },
+      { target_roles: [{ role: 'Engineer', yoe: 0 }], locations: ['Zurich', 'Berlin'], excluded_companies: [] },
     ]
     const input = buildApifyInput(prefs)
     expect(input.locationSearch).toContain('Zurich, Switzerland')
@@ -391,7 +391,7 @@ describe('buildApifyInput', () => {
 
   it('sets aiWorkArrangementFilter when any user wants Remote', () => {
     const prefs = [
-      { target_roles: [{ role: 'Engineer', minYoe: 0, maxYoe: 10 }], locations: ['Remote'], excluded_companies: [] },
+      { target_roles: [{ role: 'Engineer', yoe: 0 }], locations: ['Remote'], excluded_companies: [] },
     ]
     const input = buildApifyInput(prefs)
     expect(input.aiWorkArrangementFilter).toEqual(['Remote OK', 'Remote Solely'])
@@ -399,7 +399,7 @@ describe('buildApifyInput', () => {
 
   it('omits aiWorkArrangementFilter when no user wants Remote', () => {
     const prefs = [
-      { target_roles: [{ role: 'Engineer', minYoe: 0, maxYoe: 10 }], locations: ['Zurich'], excluded_companies: [] },
+      { target_roles: [{ role: 'Engineer', yoe: 0 }], locations: ['Zurich'], excluded_companies: [] },
     ]
     const input = buildApifyInput(prefs)
     expect(input.aiWorkArrangementFilter).toBeUndefined()
@@ -407,8 +407,8 @@ describe('buildApifyInput', () => {
 
   it('merges excluded_companies into organizationExclusionSearch', () => {
     const prefs = [
-      { target_roles: [{ role: 'Engineer', minYoe: 0, maxYoe: 10 }], locations: [], excluded_companies: ['Acme', 'BigCorp'] },
-      { target_roles: [{ role: 'Engineer', minYoe: 0, maxYoe: 10 }], locations: [], excluded_companies: ['Acme', 'MegaCorp'] },
+      { target_roles: [{ role: 'Engineer', yoe: 0 }], locations: [], excluded_companies: ['Acme', 'BigCorp'] },
+      { target_roles: [{ role: 'Engineer', yoe: 0 }], locations: [], excluded_companies: ['Acme', 'MegaCorp'] },
     ]
     const input = buildApifyInput(prefs)
     expect(input.organizationExclusionSearch).toContain('Acme')
@@ -418,7 +418,7 @@ describe('buildApifyInput', () => {
   })
 
   it('includes fixed params on every call', () => {
-    const prefs = [{ target_roles: [{ role: 'Engineer', minYoe: 0, maxYoe: 10 }], locations: ['Zurich'], excluded_companies: [] }]
+    const prefs = [{ target_roles: [{ role: 'Engineer', yoe: 0 }], locations: ['Zurich'], excluded_companies: [] }]
     const input = buildApifyInput(prefs)
     expect(input.timeRange).toBe('1h')
     expect(input.limit).toBe(200)
@@ -428,19 +428,19 @@ describe('buildApifyInput', () => {
   })
 
   it('defaults timeRange to 1h', () => {
-    const prefs = [{ target_roles: [{ role: 'PM', minYoe: 0, maxYoe: 10 }], locations: ['Zurich, Switzerland'], excluded_companies: [] }]
+    const prefs = [{ target_roles: [{ role: 'PM', yoe: 0 }], locations: ['Zurich, Switzerland'], excluded_companies: [] }]
     const input = buildApifyInput(prefs)
     expect(input.timeRange).toBe('1h')
   })
 
   it('accepts a custom timeRange', () => {
-    const prefs = [{ target_roles: [{ role: 'PM', minYoe: 0, maxYoe: 10 }], locations: ['Zurich, Switzerland'], excluded_companies: [] }]
+    const prefs = [{ target_roles: [{ role: 'PM', yoe: 0 }], locations: ['Zurich, Switzerland'], excluded_companies: [] }]
     const input = buildApifyInput(prefs, '7d')
     expect(input.timeRange).toBe('7d')
   })
 
   it('passes timeRange through unchanged', () => {
-    const prefs = [{ target_roles: [{ role: 'PM', minYoe: 0, maxYoe: 10 }], locations: ['Zurich, Switzerland'], excluded_companies: [] }]
+    const prefs = [{ target_roles: [{ role: 'PM', yoe: 0 }], locations: ['Zurich, Switzerland'], excluded_companies: [] }]
     const input = buildApifyInput(prefs, '24h')
     expect(input.timeRange).toBe('24h')
   })
@@ -463,7 +463,7 @@ describe('scrapeAll', () => {
     })
     vi.stubGlobal('fetch', fetchMock)
 
-    const prefs = [{ target_roles: [{ role: 'Engineer', minYoe: 0, maxYoe: 10 }], locations: [], excluded_companies: [] }]
+    const prefs = [{ target_roles: [{ role: 'Engineer', yoe: 0 }], locations: [], excluded_companies: [] }]
     await scrapeAll(prefs)
 
     expect(fetchMock).toHaveBeenCalledTimes(2)
@@ -483,7 +483,7 @@ describe('scrapeAll', () => {
     delete process.env.APIFY_API_TOKEN
     vi.stubGlobal('fetch', vi.fn())
     await expect(
-      scrapeAll([{ target_roles: [{ role: 'Engineer', minYoe: 0, maxYoe: 10 }], locations: [], excluded_companies: [] }])
+      scrapeAll([{ target_roles: [{ role: 'Engineer', yoe: 0 }], locations: [], excluded_companies: [] }])
     ).rejects.toThrow('APIFY_API_TOKEN is not set')
   })
 
@@ -494,7 +494,7 @@ describe('scrapeAll', () => {
     })
     vi.stubGlobal('fetch', fetchMock)
 
-    const prefs = [{ target_roles: [{ role: 'Engineer', minYoe: 0, maxYoe: 10 }], locations: [], excluded_companies: [] }]
+    const prefs = [{ target_roles: [{ role: 'Engineer', yoe: 0 }], locations: [], excluded_companies: [] }]
     await scrapeAll(prefs)
 
     // Verify both calls include Authorization header
@@ -537,7 +537,7 @@ describe('scrapeAll', () => {
       }),
     )
 
-    const prefs = [{ target_roles: [{ role: 'Head of Product', minYoe: 0, maxYoe: 10 }], locations: ['Zurich'], excluded_companies: [] }]
+    const prefs = [{ target_roles: [{ role: 'Head of Product', yoe: 0 }], locations: ['Zurich'], excluded_companies: [] }]
     const jobs = await scrapeAll(prefs)
 
     expect(jobs).toHaveLength(2)
@@ -567,7 +567,7 @@ describe('scrapeAll', () => {
       }),
     )
 
-    const prefs = [{ target_roles: [{ role: 'Engineer', minYoe: 0, maxYoe: 10 }], locations: [], excluded_companies: [] }]
+    const prefs = [{ target_roles: [{ role: 'Engineer', yoe: 0 }], locations: [], excluded_companies: [] }]
     const jobs = await scrapeAll(prefs)
 
     expect(jobs).toHaveLength(1)
@@ -577,7 +577,7 @@ describe('scrapeAll', () => {
   it('returns empty array when both actors fail', async () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('Network error')))
 
-    const prefs = [{ target_roles: [{ role: 'Engineer', minYoe: 0, maxYoe: 10 }], locations: [], excluded_companies: [] }]
+    const prefs = [{ target_roles: [{ role: 'Engineer', yoe: 0 }], locations: [], excluded_companies: [] }]
     const jobs = await scrapeAll(prefs)
 
     expect(jobs).toHaveLength(0)

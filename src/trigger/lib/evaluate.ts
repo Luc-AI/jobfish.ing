@@ -30,7 +30,7 @@ export function buildEvaluationPrompt(input: EvaluationInput): string {
 
   const yoeHint = targetRoles.length > 0
     ? targetRoles
-        .map((r) => `${r.role}: ${r.minYoe}–${r.maxYoe === 0 ? 'any' : r.maxYoe} yrs`)
+        .map((r) => `${r.role}: ${r.yoe === 0 ? 'any' : `${r.yoe}+`} yrs`)
         .join(', ')
     : 'Not specified'
 
