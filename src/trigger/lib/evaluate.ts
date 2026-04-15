@@ -1,11 +1,12 @@
 import { scoreResponseSchema, type ScoreResponse } from './score-schema'
+import type { RoleSelection } from '@/lib/supabase/types'
 
 interface EvaluationInput {
   jobTitle: string
   jobCompany: string
   jobDescription: string
   cvText: string
-  targetRoles: string[]
+  targetRoles: RoleSelection[]
   industries: string[]
   locations: string[]
   excludedCompanies: string[]
@@ -23,13 +24,24 @@ export function buildEvaluationPrompt(input: EvaluationInput): string {
     excludedCompanies,
   } = input
 
+  const roleNames = targetRoles.length > 0
+    ? targetRoles.map((r) => r.role).join(', ')
+    : 'Not specified'
+
+  const yoeHint = targetRoles.length > 0
+    ? targetRoles
+        .map((r) => `${r.role}: ${r.minYoe}–${r.maxYoe === 0 ? 'any' : r.maxYoe} yrs`)
+        .join(', ')
+    : 'Not specified'
+
   return `You are a career advisor evaluating how well a job matches a candidate's profile.
 
 ## Candidate CV
 ${cvText}
 
 ## Candidate Preferences
-- Target roles: ${targetRoles.length > 0 ? targetRoles.join(', ') : 'Not specified'}
+- Target roles: ${roleNames}
+- Years of experience per role: ${yoeHint}
 - Preferred industries: ${industries.length > 0 ? industries.join(', ') : 'Not specified'}
 - Preferred locations: ${locations.length > 0 ? locations.join(', ') : 'Not specified'}
 - Excluded companies: ${excludedCompanies.length > 0 ? excludedCompanies.join(', ') : 'None'}

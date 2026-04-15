@@ -1,6 +1,7 @@
 import { task } from '@trigger.dev/sdk'
 import * as Sentry from '@sentry/node'
 import { createServiceClient } from '@/lib/supabase/service'
+import type { RoleSelection } from '@/lib/supabase/types'
 import { buildEvaluationPrompt, callOpenRouter, parseEvaluationResponse } from './lib/evaluate'
 
 interface EvaluateJobsPayload {
@@ -67,7 +68,7 @@ export const evaluateJobsTask = task({
             jobCompany: job.company,
             jobDescription: job.description ?? '',
             cvText: user.cv_text ?? '',
-            targetRoles: prefs?.target_roles ?? [],
+            targetRoles: (prefs?.target_roles ?? []) as RoleSelection[],
             industries: prefs?.industries ?? [],
             locations: prefs?.locations ?? [],
             excludedCompanies: prefs?.excluded_companies ?? [],

@@ -1,4 +1,5 @@
 import * as Sentry from '@sentry/node'
+import type { RoleSelection } from '@/lib/supabase/types'
 
 const CAREER_SITE_ENDPOINT =
   'https://api.apify.com/v2/acts/fantastic-jobs~career-site-job-listing-api/run-sync-get-dataset-items'
@@ -70,7 +71,7 @@ export interface ApifyInput {
 }
 
 export interface UserPreference {
-  target_roles: string[]
+  target_roles: RoleSelection[]
   locations: string[]
   excluded_companies: string[]
 }
@@ -80,7 +81,7 @@ export function toApifyLocation(city: string): string {
 }
 
 export function buildApifyInput(preferences: UserPreference[], timeRange = '1h'): ApifyInput {
-  const titleSearch = [...new Set(preferences.flatMap(p => p.target_roles ?? []))]
+  const titleSearch = [...new Set(preferences.flatMap(p => (p.target_roles ?? []).map(r => r.role)))]
 
   const rawLocations = [...new Set(preferences.flatMap(p => p.locations ?? []))]
   const locationSearch = rawLocations

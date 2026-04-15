@@ -12,6 +12,8 @@ import { Switch } from '@/components/ui/switch'
 import { Loader2 } from 'lucide-react'
 import { posthog } from '@/lib/posthog'
 import { LocationPicker } from '@/components/features/location-picker'
+import { RolePicker } from '@/components/features/role-picker'
+import type { RoleSelection } from '@/lib/supabase/types'
 
 type WizardStep = 1 | 2 | 3 | 4 | 'loading'
 type RemotePreference = 'on-site' | 'hybrid' | 'remote-ok' | 'remote-solely'
@@ -44,7 +46,7 @@ export function OnboardingWizard({ userId, initialStep = 1 }: OnboardingWizardPr
   const [cvText, setCvText] = useState('')
 
   // Step 3: Preferences
-  const [targetRoles, setTargetRoles] = useState('')
+  const [targetRoles, setTargetRoles] = useState<RoleSelection[]>([])
   const [industries, setIndustries] = useState('')
   const [locations, setLocations] = useState<string[]>([])
   const [excludedCompanies, setExcludedCompanies] = useState('')
@@ -87,7 +89,7 @@ export function OnboardingWizard({ userId, initialStep = 1 }: OnboardingWizardPr
       .from('preferences')
       .upsert({
         user_id: userId,
-        target_roles: parseCommaSeparated(targetRoles),
+        target_roles: targetRoles,
         industries: parseCommaSeparated(industries),
         locations,
         excluded_companies: parseCommaSeparated(excludedCompanies),
@@ -211,15 +213,10 @@ export function OnboardingWizard({ userId, initialStep = 1 }: OnboardingWizardPr
         {step === 3 && (
           <div className="space-y-4">
             <p className="text-muted-foreground text-sm">
-              Enter comma-separated values. The AI uses these to evaluate job fit.
+              The AI uses these to evaluate job fit.
             </p>
             <div className="space-y-1">
-              <Label>Target roles</Label>
-              <Input
-                placeholder="Head of Product, VP Biz Dev, PM"
-                value={targetRoles}
-                onChange={e => setTargetRoles(e.target.value)}
-              />
+              <RolePicker value={targetRoles} onChange={setTargetRoles} />
             </div>
             <div className="space-y-1">
               <Label>Industries</Label>
