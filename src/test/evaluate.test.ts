@@ -1,12 +1,13 @@
 import { describe, it, expect } from 'vitest'
 import { buildEvaluationPrompt, parseEvaluationResponse } from '@/trigger/lib/evaluate'
+import type { RoleSelection } from '@/lib/supabase/types'
 
 const baseInput = {
   jobTitle: 'Head of Product',
   jobCompany: 'Acme Corp',
   jobDescription: 'We are looking for...',
   cvText: 'My background includes...',
-  targetRoles: ['Product Manager'],
+  targetRoles: [{ role: 'Product Manager', minYoe: 2, maxYoe: 5 }] as RoleSelection[],
   industries: ['Fintech'],
   locations: ['Zurich'],
   excludedCompanies: [],
@@ -65,6 +66,19 @@ describe('buildEvaluationPrompt', () => {
     const prompt = buildEvaluationPrompt(baseInput)
     expect(prompt).not.toContain('company_fit')
     expect(prompt).not.toContain('growth_potential')
+  })
+
+  it('includes YoE hint in the prompt', () => {
+    const prompt = buildEvaluationPrompt(baseInput)
+    expect(prompt).toContain('Product Manager: 2–5 yrs')
+  })
+
+  it('renders maxYoe 0 as "any" in the YoE hint', () => {
+    const input = {
+      ...baseInput,
+      targetRoles: [{ role: 'Product Manager', minYoe: 0, maxYoe: 0 }] as RoleSelection[],
+    }
+    expect(buildEvaluationPrompt(input)).toContain('Product Manager: 0–any yrs')
   })
 })
 
