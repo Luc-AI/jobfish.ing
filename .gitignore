@@ -40,6 +40,16 @@ yarn-error.log*
 # git worktrees
 .worktrees/
 
+# trigger.dev local build artifacts
+.trigger/
+
+# superpowers local artifacts
+.superpowers/
+
+# claude local settings
+.claude/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+.env*.local

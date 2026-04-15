@@ -72,6 +72,7 @@ export function buildUserDigests(
 ): UserDigest[] {
   const profileById = new Map(profiles.map(profile => [profile.id, profile]))
   const digestsByUser = new Map<string, UserDigest>()
+  const seenByUser = new Map<string, Set<string>>()
 
   for (const evaluation of sortEvaluations(evaluations)) {
     const profile = profileById.get(evaluation.user_id)
@@ -85,6 +86,15 @@ export function buildUserDigests(
     if (!job) {
       continue
     }
+
+    // Deduplicate: same physical job can appear with different URLs across sources
+    const jobKey = `${job.title}\0${job.company}`.toLowerCase()
+    const seenKeys = seenByUser.get(evaluation.user_id) ?? new Set<string>()
+    if (seenKeys.has(jobKey)) {
+      continue
+    }
+    seenKeys.add(jobKey)
+    seenByUser.set(evaluation.user_id, seenKeys)
 
     const existingDigest = digestsByUser.get(evaluation.user_id)
     const digestJob: DigestJobItem = {

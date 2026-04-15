@@ -2,7 +2,7 @@ import { schedules } from '@trigger.dev/sdk'
 import * as Sentry from '@sentry/node'
 import { createServiceClient } from '@/lib/supabase/service'
 import { scrapeAll, type NormalizedJob } from './lib/apify'
-import type { Json } from '@/lib/supabase/types'
+import type { Json, RoleSelection } from '@/lib/supabase/types'
 import { evaluateJobsTask } from './evaluate-jobs'
 
 export const scrapeJobsTask = schedules.task({
@@ -29,7 +29,7 @@ export const scrapeJobsTask = schedules.task({
     }
 
     const preferences = ((rawPrefs ?? []) as Array<{
-      target_roles: string[] | null
+      target_roles: RoleSelection[] | null
       locations: string[] | null
       excluded_companies: string[] | null
     }>).map(p => ({

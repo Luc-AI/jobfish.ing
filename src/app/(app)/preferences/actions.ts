@@ -3,10 +3,11 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { updateProfile, updatePreferences } from '@/lib/supabase/queries'
+import type { RoleSelection } from '@/lib/supabase/types'
 
 export async function savePreferences(values: {
   cvText: string
-  targetRoles: string[]
+  targetRoles: RoleSelection[]
   industries: string[]
   locations: string[]
   excludedCompanies: string[]

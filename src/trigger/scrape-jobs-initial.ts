@@ -2,6 +2,7 @@ import { task } from '@trigger.dev/sdk'
 import * as Sentry from '@sentry/node'
 import { createServiceClient } from '@/lib/supabase/service'
 import { scrapeAll } from './lib/apify'
+import type { RoleSelection } from '@/lib/supabase/types'
 import { evaluateJobsTask } from './evaluate-jobs'
 
 export const scrapeJobsInitialTask = task({
@@ -22,7 +23,7 @@ export const scrapeJobsInitialTask = task({
 
     const preferences = [
       {
-        target_roles: prefs.target_roles ?? [],
+        target_roles: (prefs.target_roles ?? []) as RoleSelection[],
         locations: prefs.locations ?? [],
         excluded_companies: prefs.excluded_companies ?? [],
       },

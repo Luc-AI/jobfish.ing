@@ -11,6 +11,11 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[]
 
+export type RoleSelection = {
+  role: string
+  yoe: number
+}
+
 export type Database = {
   public: {
     Tables: {
@@ -54,7 +59,7 @@ export type Database = {
         Row: {
           id: string
           user_id: string
-          target_roles: string[]
+          target_roles: RoleSelection[]
           industries: string[]
           locations: string[]
           excluded_companies: string[]
@@ -64,7 +69,7 @@ export type Database = {
         Insert: {
           id?: string
           user_id: string
-          target_roles?: string[]
+          target_roles?: RoleSelection[]
           industries?: string[]
           locations?: string[]
           excluded_companies?: string[]
@@ -74,7 +79,7 @@ export type Database = {
         Update: {
           id?: string
           user_id?: string
-          target_roles?: string[]
+          target_roles?: RoleSelection[]
           industries?: string[]
           locations?: string[]
           excluded_companies?: string[]
