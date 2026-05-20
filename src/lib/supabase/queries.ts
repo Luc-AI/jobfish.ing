@@ -1,3 +1,4 @@
+// src/lib/supabase/queries.ts
 import { createClient } from './server'
 import type { Database } from './types'
 
@@ -7,36 +8,22 @@ type JobActionStatus = Database['public']['Enums']['job_action_status']
 
 export async function getProfile(userId: string) {
   const supabase = await createClient()
-  return supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', userId)
-    .single()
+  return supabase.from('profiles').select('*').eq('id', userId).single()
 }
 
 export async function updateProfile(userId: string, data: Omit<ProfileUpdate, 'id' | 'created_at'>) {
   const supabase = await createClient()
-  return supabase
-    .from('profiles')
-    .update(data)
-    .eq('id', userId)
+  return supabase.from('profiles').update(data).eq('id', userId)
 }
 
 export async function getPreferences(userId: string) {
   const supabase = await createClient()
-  return supabase
-    .from('preferences')
-    .select('*')
-    .eq('user_id', userId)
-    .single()
+  return supabase.from('preferences').select('*').eq('user_id', userId).single()
 }
 
 export async function updatePreferences(userId: string, data: Omit<PreferencesUpdate, 'id' | 'user_id'>) {
   const supabase = await createClient()
-  return supabase
-    .from('preferences')
-    .update(data)
-    .eq('user_id', userId)
+  return supabase.from('preferences').update(data).eq('user_id', userId)
 }
 
 export async function getJobFeed(
@@ -49,7 +36,6 @@ export async function getJobFeed(
   const from = (page - 1) * pageSize
   const to = from + pageSize - 1
 
-  // Get IDs of jobs the user has hidden, to exclude them
   let hiddenJobIds: string[] = []
   if (hideHidden) {
     const { data: hiddenActions } = await supabase
@@ -70,17 +56,20 @@ export async function getJobFeed(
       dimensions,
       notified_at,
       created_at,
-      jobs (
+      jobs!inner (
         id,
         title,
         company,
         location,
         url,
         source,
-        scraped_at
+        remote_type,
+        industry,
+        synced_at
       )
     `)
     .eq('user_id', userId)
+    .eq('jobs.is_active', true)
     .order('score', { ascending: false })
     .range(from, to)
 
@@ -91,7 +80,6 @@ export async function getJobFeed(
   const { data: evaluations, error } = await query
   if (error || !evaluations?.length) return { data: evaluations ?? [], error }
 
-  // Fetch user_job_actions separately — no direct FK to job_evaluations exists
   const jobIds = evaluations.map(e => e.job_id).filter(Boolean) as string[]
   const { data: actions } = await supabase
     .from('user_job_actions')
@@ -109,21 +97,12 @@ export async function getJobFeed(
   return { data: merged, error: null }
 }
 
-export async function upsertJobAction(
-  userId: string,
-  jobId: string,
-  status: JobActionStatus
-) {
+export async function upsertJobAction(userId: string, jobId: string, status: JobActionStatus) {
   const supabase = await createClient()
   return supabase
     .from('user_job_actions')
     .upsert(
-      {
-        user_id: userId,
-        job_id: jobId,
-        status,
-        applied_at: status === 'applied' ? new Date().toISOString() : null,
-      },
+      { user_id: userId, job_id: jobId, status, applied_at: status === 'applied' ? new Date().toISOString() : null },
       { onConflict: 'user_id,job_id' }
     )
 }
@@ -137,22 +116,15 @@ export interface JobDetailData {
     url: string
     source: string
     description: string | null
-    scraped_at: string
+    remote_type: string | null
+    industry: string | null
     date_posted: string | null
+    job_updated_at: string | null
+    synced_at: string
     employment_type: string[] | null
-    work_arrangement: string | null
     experience_level: string | null
     job_language: string | null
     working_hours: number | null
-    source_domain: string | null
-    detail_facts: {
-      location_display?: string
-      key_skills?: string[]
-      core_responsibilities?: string
-      requirements_summary?: string
-      education_requirements?: string[]
-      keywords?: string[]
-    } | null
   }
   evaluation: {
     id: string
@@ -186,20 +158,18 @@ export interface JobDetailData {
   } | null
 }
 
-export async function getJobDetail(
-  userId: string,
-  jobId: string
-): Promise<JobDetailData | null> {
+export async function getJobDetail(userId: string, jobId: string): Promise<JobDetailData | null> {
   const supabase = await createClient()
 
   const { data: job, error: jobError } = await supabase
     .from('jobs')
     .select(`
-      id, title, company, location, url, source, description, scraped_at,
-      date_posted, employment_type, work_arrangement, experience_level,
-      job_language, working_hours, source_domain, detail_facts
+      id, title, company, location, url, source, description,
+      remote_type, industry, date_posted, job_updated_at, synced_at,
+      employment_type, experience_level, job_language, working_hours
     `)
     .eq('id', jobId)
+    .eq('is_active', true)
     .single()
 
   if (jobError || !job) return null
@@ -218,7 +188,6 @@ export async function getJobDetail(
     .eq('user_id', userId)
     .maybeSingle()
 
-  // Return notFound signal if user has hidden this job
   if (action?.status === 'hidden') return null
 
   return {
