@@ -57,7 +57,7 @@
     "jsdom": "^29.0.2",
     "supabase": "^2.85.0",
     "tailwindcss": "^4",
-    "trigger.dev": "^4.4.3",
+    "trigger.dev": "^4.4.6",
     "typescript": "^5",
     "vitest": "^4.1.2"
   }

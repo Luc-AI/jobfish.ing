@@ -53,7 +53,7 @@ export function normalizeJobichJob(raw: JobichJob): NormalizedJob {
   return {
     external_id: raw.id,
     title: raw.title,
-    company: raw.company,
+    company: raw.company ?? 'Unknown',
     location: raw.location ?? null,
     remote_type: raw.remote_type ?? null,
     description: stripHtml(raw.description),
