@@ -79,6 +79,61 @@ describe('notifyUsersTask', () => {
     expect((notifyUsersTask as any).retry).toEqual({ maxAttempts: 1 })
   })
 
+  it('deduplicates evaluations for the same title+company (different URLs/sources)', () => {
+    const digests = buildUserDigests(
+      [
+        {
+          id: 'evaluation-1',
+          score: 8.5,
+          reasoning: 'From LinkedIn',
+          user_id: 'user-1',
+          created_at: '2026-04-14T01:00:00.000Z',
+          jobs: {
+            title: 'Head of Product',
+            company: 'Acme',
+            location: 'Zurich',
+            url: 'https://linkedin.com/jobs/123',
+            source: 'linkedin',
+          },
+        },
+        {
+          id: 'evaluation-2',
+          score: 8.2,
+          reasoning: 'From career site',
+          user_id: 'user-1',
+          created_at: '2026-04-14T02:00:00.000Z',
+          jobs: {
+            title: 'Head of Product',
+            company: 'Acme',
+            location: 'Zurich',
+            url: 'https://acme.com/careers/head-of-product',
+            source: 'company_site',
+          },
+        },
+      ],
+      [{ id: 'user-1', threshold: 7, notifications_enabled: true }]
+    )
+
+    // Only the first-seen evaluation for the title+company pair is included
+    expect(digests).toEqual([
+      {
+        userId: 'user-1',
+        evaluationIds: ['evaluation-1'],
+        jobs: [
+          {
+            jobTitle: 'Head of Product',
+            company: 'Acme',
+            location: 'Zurich',
+            score: 8.5,
+            reasoning: 'From LinkedIn',
+            applyUrl: 'https://linkedin.com/jobs/123',
+            source: 'linkedin',
+          },
+        ],
+      },
+    ])
+  })
+
   it('builds digests from array-shaped job relations and skips null jobs', () => {
     const digests = buildUserDigests(
       [
@@ -127,7 +182,7 @@ describe('notifyUsersTask', () => {
             score: 8.1,
             reasoning: 'Use the first related job',
             applyUrl: 'https://example.com/first-role',
-            source: 'LinkedIn',
+            source: 'linkedin',
           },
         ],
       },
@@ -273,7 +328,7 @@ describe('notifyUsersTask', () => {
           score: 8.4,
           reasoning: 'Strong match',
           applyUrl: 'https://example.com/head-of-product',
-          source: 'LinkedIn',
+          source: 'linkedin',
         },
         {
           jobTitle: 'Director of Product',
@@ -282,7 +337,7 @@ describe('notifyUsersTask', () => {
           score: 7.6,
           reasoning: 'Solid fit',
           applyUrl: 'https://example.com/director-of-product',
-          source: 'Jobs.ch',
+          source: 'jobs.ch',
         },
       ],
       [
@@ -293,7 +348,7 @@ describe('notifyUsersTask', () => {
           score: 8.2,
           reasoning: 'Great leadership overlap',
           applyUrl: 'https://example.com/vp-product',
-          source: 'LinkedIn',
+          source: 'linkedin',
         },
       ],
     ])

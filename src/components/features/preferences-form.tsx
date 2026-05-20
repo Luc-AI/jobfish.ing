@@ -1,3 +1,4 @@
+// src/components/features/preferences-form.tsx
 'use client'
 
 import { useState } from 'react'
@@ -6,11 +7,14 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { posthog } from '@/lib/posthog'
+import { RolePicker } from '@/components/features/role-picker'
+import type { RoleSelection } from '@/lib/supabase/types'
 
 interface PreferencesValues {
   cvText: string
-  targetRoles: string[]
-  industries: string[]
+  targetRoles: RoleSelection[]
+  targetIndustries: string[]
+  excludedIndustries: string[]
   locations: string[]
   excludedCompanies: string[]
 }
@@ -30,8 +34,9 @@ function inputToArray(value: string): string[] {
 
 export function PreferencesForm({ defaultValues, onSave }: PreferencesFormProps) {
   const [cvText, setCvText] = useState(defaultValues.cvText)
-  const [targetRoles, setTargetRoles] = useState(arrayToInput(defaultValues.targetRoles))
-  const [industries, setIndustries] = useState(arrayToInput(defaultValues.industries))
+  const [targetRoles, setTargetRoles] = useState<RoleSelection[]>(defaultValues.targetRoles)
+  const [targetIndustries, setTargetIndustries] = useState(arrayToInput(defaultValues.targetIndustries))
+  const [excludedIndustries, setExcludedIndustries] = useState(arrayToInput(defaultValues.excludedIndustries))
   const [locations, setLocations] = useState(arrayToInput(defaultValues.locations))
   const [excludedCompanies, setExcludedCompanies] = useState(arrayToInput(defaultValues.excludedCompanies))
   const [saving, setSaving] = useState(false)
@@ -41,8 +46,9 @@ export function PreferencesForm({ defaultValues, onSave }: PreferencesFormProps)
     setSaving(true)
     await onSave({
       cvText,
-      targetRoles: inputToArray(targetRoles),
-      industries: inputToArray(industries),
+      targetRoles,
+      targetIndustries: inputToArray(targetIndustries),
+      excludedIndustries: inputToArray(excludedIndustries),
       locations: inputToArray(locations),
       excludedCompanies: inputToArray(excludedCompanies),
     })
@@ -67,23 +73,26 @@ export function PreferencesForm({ defaultValues, onSave }: PreferencesFormProps)
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="target-roles">Target roles</Label>
-        <Input
-          id="target-roles"
-          placeholder="Head of Product, VP Biz Dev, PM"
-          value={targetRoles}
-          onChange={e => setTargetRoles(e.target.value)}
-        />
-        <p className="text-xs text-muted-foreground">Comma-separated</p>
+        <RolePicker value={targetRoles} onChange={setTargetRoles} />
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="industries">Industries</Label>
+        <Label htmlFor="target-industries">Preferred industries</Label>
         <Input
-          id="industries"
-          placeholder="Fintech, SaaS, VC"
-          value={industries}
-          onChange={e => setIndustries(e.target.value)}
+          id="target-industries"
+          placeholder="Fintech, SaaS, Deep Tech"
+          value={targetIndustries}
+          onChange={e => setTargetIndustries(e.target.value)}
+        />
+      </div>
+
+      <div className="space-y-1.5">
+        <Label htmlFor="excluded-industries">Industries to avoid</Label>
+        <Input
+          id="excluded-industries"
+          placeholder="Pharma, Oil & Gas"
+          value={excludedIndustries}
+          onChange={e => setExcludedIndustries(e.target.value)}
         />
       </div>
 
@@ -91,7 +100,7 @@ export function PreferencesForm({ defaultValues, onSave }: PreferencesFormProps)
         <Label htmlFor="locations">Locations</Label>
         <Input
           id="locations"
-          placeholder="Zurich, Remote, Berlin"
+          placeholder="Zurich, Remote, Geneva"
           value={locations}
           onChange={e => setLocations(e.target.value)}
         />

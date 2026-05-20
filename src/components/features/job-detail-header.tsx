@@ -26,7 +26,7 @@ export function JobDetailHeader({ job, score, action, onAction }: JobDetailHeade
   }
 
   const chips: { label: string; value: string }[] = [
-    job.work_arrangement ? { label: 'arrangement', value: job.work_arrangement } : null,
+    job.remote_type ? { label: 'arrangement', value: job.remote_type } : null,
     ...(job.employment_type ?? []).map(t => ({ label: 'type', value: t })),
     job.experience_level ? { label: 'level', value: job.experience_level } : null,
     job.job_language ? { label: 'language', value: job.job_language } : null,
@@ -40,10 +40,10 @@ export function JobDetailHeader({ job, score, action, onAction }: JobDetailHeade
           <h1 className="text-2xl font-bold tracking-tight">{job.title}</h1>
           <div className="flex items-center gap-3 mt-1 text-sm text-muted-foreground flex-wrap">
             <span className="font-medium text-foreground">{job.company}</span>
-            {(job.detail_facts?.location_display ?? job.location) && (
+            {job.location && (
               <span className="flex items-center gap-1">
                 <MapPin className="h-3 w-3" />
-                {job.detail_facts?.location_display ?? job.location}
+                {job.location}
               </span>
             )}
           </div>

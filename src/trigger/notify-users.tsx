@@ -5,10 +5,8 @@ import { Resend } from 'resend'
 import { JobDigestEmail, type DigestJobItem } from '@/lib/email/job-digest'
 import { createServiceClient } from '@/lib/supabase/service'
 
-const SOURCE_LABELS: Record<string, string> = {
-  linkedin: 'LinkedIn',
-  'jobs.ch': 'Jobs.ch',
-  company_site: 'Company',
+function formatSource(source: string): string {
+  return source
 }
 
 interface EvaluationJobRow {
@@ -72,6 +70,7 @@ export function buildUserDigests(
 ): UserDigest[] {
   const profileById = new Map(profiles.map(profile => [profile.id, profile]))
   const digestsByUser = new Map<string, UserDigest>()
+  const seenByUser = new Map<string, Set<string>>()
 
   for (const evaluation of sortEvaluations(evaluations)) {
     const profile = profileById.get(evaluation.user_id)
@@ -86,6 +85,15 @@ export function buildUserDigests(
       continue
     }
 
+    // Deduplicate: same physical job can appear with different URLs across sources
+    const jobKey = `${job.title}\0${job.company}`.toLowerCase()
+    const seenKeys = seenByUser.get(evaluation.user_id) ?? new Set<string>()
+    if (seenKeys.has(jobKey)) {
+      continue
+    }
+    seenKeys.add(jobKey)
+    seenByUser.set(evaluation.user_id, seenKeys)
+
     const existingDigest = digestsByUser.get(evaluation.user_id)
     const digestJob: DigestJobItem = {
       jobTitle: job.title,
@@ -94,7 +102,7 @@ export function buildUserDigests(
       score: evaluation.score,
       reasoning: evaluation.reasoning ?? '',
       applyUrl: job.url,
-      source: SOURCE_LABELS[job.source] ?? job.source,
+      source: formatSource(job.source),
     }
 
     if (existingDigest) {

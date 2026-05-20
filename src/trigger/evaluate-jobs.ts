@@ -1,11 +1,13 @@
+// src/trigger/evaluate-jobs.ts
 import { task } from '@trigger.dev/sdk'
 import * as Sentry from '@sentry/node'
 import { createServiceClient } from '@/lib/supabase/service'
+import type { RoleSelection } from '@/lib/supabase/types'
 import { buildEvaluationPrompt, callOpenRouter, parseEvaluationResponse } from './lib/evaluate'
+import { filterJobsForUser } from './lib/pre-filter'
 
 interface EvaluateJobsPayload {
-  jobIds: string[]
-  /** If provided, only evaluate for these users (used for new-user backfill) */
+  jobIds?: string[]
   userIds?: string[]
 }
 
@@ -15,18 +17,24 @@ export const evaluateJobsTask = task({
   run: async ({ jobIds, userIds }: EvaluateJobsPayload) => {
     const supabase = createServiceClient()
 
-    // Fetch the new jobs
-    const { data: jobs, error: jobsError } = await supabase
+    let jobsQuery = supabase
       .from('jobs')
-      .select('id, title, company, location, description')
-      .in('id', jobIds)
+      .select('id, title, company, location, description, industry')
+      .eq('is_active', true)
+
+    if (jobIds && jobIds.length > 0) {
+      jobsQuery = jobsQuery.in('id', jobIds)
+    } else {
+      jobsQuery = jobsQuery.order('job_updated_at', { ascending: false }).limit(100)
+    }
+
+    const { data: jobs, error: jobsError } = await jobsQuery
 
     if (jobsError || !jobs?.length) {
       console.log('No jobs to evaluate')
-      return
+      return { evaluatedCount: 0 }
     }
 
-    // Fetch active users with complete profiles (optionally scoped to specific users)
     let profilesQuery = supabase
       .from('profiles')
       .select('id, cv_text')
@@ -37,38 +45,43 @@ export const evaluateJobsTask = task({
       profilesQuery = profilesQuery.in('id', userIds)
     }
 
-    const { data: profiles } = await profilesQuery
+    const { data: profiles, error: profilesError } = await profilesQuery
+
+    if (profilesError) throw profilesError
 
     if (!profiles?.length) {
       console.log('No active users to evaluate for')
-      return
+      return { evaluatedCount: 0 }
     }
 
-    // Fetch preferences for those users
-    const profileUserIds = profiles.map((p) => p.id)
+    const profileUserIds = profiles.map(p => p.id)
     const { data: prefsRows } = await supabase
       .from('preferences')
-      .select('user_id, target_roles, industries, locations, excluded_companies')
+      .select('user_id, target_roles, target_industries, locations, excluded_companies, excluded_industries')
       .in('user_id', profileUserIds)
 
-    const prefsMap = new Map(
-      (prefsRows ?? []).map((p) => [p.user_id, p])
-    )
+    const prefsMap = new Map((prefsRows ?? []).map(p => [p.user_id, p]))
 
     let evaluatedCount = 0
 
     for (const user of profiles) {
       const prefs = prefsMap.get(user.id)
 
-      for (const job of jobs) {
+      const candidateJobs = filterJobsForUser(jobs, {
+        target_roles: (prefs?.target_roles ?? []) as RoleSelection[],
+        excluded_companies: prefs?.excluded_companies ?? [],
+        excluded_industries: (prefs?.excluded_industries ?? []) as string[],
+      })
+
+      for (const job of candidateJobs) {
         try {
           const prompt = buildEvaluationPrompt({
             jobTitle: job.title,
             jobCompany: job.company,
             jobDescription: job.description ?? '',
             cvText: user.cv_text ?? '',
-            targetRoles: prefs?.target_roles ?? [],
-            industries: prefs?.industries ?? [],
+            targetRoles: (prefs?.target_roles ?? []) as RoleSelection[],
+            targetIndustries: (prefs?.target_industries ?? []) as string[],
             locations: prefs?.locations ?? [],
             excludedCompanies: prefs?.excluded_companies ?? [],
           })
@@ -76,28 +89,24 @@ export const evaluateJobsTask = task({
           const rawResponse = await callOpenRouter(prompt)
           const { score, reasoning, dimensions, detailed_reasoning } = parseEvaluationResponse(rawResponse)
 
-          const { data: evaluation } = await supabase
+          await supabase
             .from('job_evaluations')
-            .insert({
-              job_id: job.id,
-              user_id: user.id,
-              score,
-              reasoning,
-              dimensions,
-              detailed_reasoning,
-            })
-            .select('id')
-            .single()
+            .upsert(
+              {
+                job_id: job.id,
+                user_id: user.id,
+                score,
+                reasoning,
+                dimensions,
+                detailed_reasoning,
+              },
+              { onConflict: 'job_id,user_id', ignoreDuplicates: true }
+            )
 
-          if (evaluation) {
-            evaluatedCount++
-          }
+          evaluatedCount++
         } catch (err) {
-          Sentry.captureException(err, {
-            extra: { jobId: job.id, userId: user.id },
-          })
+          Sentry.captureException(err, { extra: { jobId: job.id, userId: user.id } })
           console.error(`Evaluation failed for job ${job.id} / user ${user.id}:`, err)
-          // Continue with next job/user pair — don't abort the batch
         }
       }
     }

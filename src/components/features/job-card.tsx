@@ -32,7 +32,7 @@ export interface JobEvaluation {
     location: string | null
     url: string
     source: string
-    scraped_at: string
+    synced_at: string
   } | null
   user_job_actions?: {
     status: 'saved' | 'hidden' | 'applied'

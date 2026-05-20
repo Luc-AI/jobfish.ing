@@ -1,8 +1,8 @@
+// src/app/api/onboarding/complete/route.ts
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { tasks } from '@trigger.dev/sdk'
 
-// Allow up to 5 minutes for the initial scrape to complete
 export const maxDuration = 300
 
 export async function POST() {
@@ -15,16 +15,16 @@ export async function POST() {
 
   try {
     const result = await tasks.triggerAndWait(
-      'scrape-jobs-initial',
-      { userId: user.id }
+      'evaluate-jobs',
+      { userIds: [user.id] }
     )
 
     if (!result.ok) {
-      return NextResponse.json({ error: 'Scrape failed' }, { status: 500 })
+      return NextResponse.json({ error: 'Evaluation failed' }, { status: 500 })
     }
 
     return NextResponse.json({ ok: true })
   } catch {
-    return NextResponse.json({ error: 'Scrape failed' }, { status: 500 })
+    return NextResponse.json({ error: 'Evaluation failed' }, { status: 500 })
   }
 }

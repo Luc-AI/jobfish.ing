@@ -1,12 +1,13 @@
 import { scoreResponseSchema, type ScoreResponse } from './score-schema'
+import type { RoleSelection } from '@/lib/supabase/types'
 
 interface EvaluationInput {
   jobTitle: string
   jobCompany: string
   jobDescription: string
   cvText: string
-  targetRoles: string[]
-  industries: string[]
+  targetRoles: RoleSelection[]
+  targetIndustries: string[]
   locations: string[]
   excludedCompanies: string[]
 }
@@ -18,10 +19,20 @@ export function buildEvaluationPrompt(input: EvaluationInput): string {
     jobDescription,
     cvText,
     targetRoles,
-    industries,
+    targetIndustries,
     locations,
     excludedCompanies,
   } = input
+
+  const roleNames = targetRoles.length > 0
+    ? targetRoles.map((r) => r.role).join(', ')
+    : 'Not specified'
+
+  const yoeHint = targetRoles.length > 0
+    ? targetRoles
+        .map((r) => `${r.role}: ${r.yoe === 0 ? 'any' : `${r.yoe}+`} yrs`)
+        .join(', ')
+    : 'Not specified'
 
   return `You are a career advisor evaluating how well a job matches a candidate's profile.
 
@@ -29,8 +40,9 @@ export function buildEvaluationPrompt(input: EvaluationInput): string {
 ${cvText}
 
 ## Candidate Preferences
-- Target roles: ${targetRoles.length > 0 ? targetRoles.join(', ') : 'Not specified'}
-- Preferred industries: ${industries.length > 0 ? industries.join(', ') : 'Not specified'}
+- Target roles: ${roleNames}
+- Years of experience per role: ${yoeHint}
+- Preferred industries: ${targetIndustries.length > 0 ? targetIndustries.join(', ') : 'Not specified'}
 - Preferred locations: ${locations.length > 0 ? locations.join(', ') : 'Not specified'}
 - Excluded companies: ${excludedCompanies.length > 0 ? excludedCompanies.join(', ') : 'None'}
 
