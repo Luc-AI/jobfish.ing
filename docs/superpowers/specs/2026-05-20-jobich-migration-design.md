@@ -47,21 +47,22 @@ notify-users (daily 8am Europe/Zurich, unchanged)
 
 ## Pre-filter Logic
 
-Applied per user before any AI call. Two hard exclusion gates only:
+Applied per user before any AI call. Three conditions — one inclusion, two exclusions:
 
 ```
 candidate_jobs = new_jobs WHERE:
-  1. job.company NOT IN user.excluded_companies
-  2. job.industry NOT IN user.excluded_industries
+  1. job.title ILIKE ANY('%' || role || '%' for role in user.target_roles)
+     (case-insensitive substring match against each target role keyword)
+     Fallback: if user has no target_roles set, skip this condition — pass all jobs
+  2. job.company NOT IN user.excluded_companies
+  3. job.industry NOT IN user.excluded_industries
      (jobs with industry = NULL or "Other" always pass through)
 ```
 
-**Why only exclusions, not inclusions:**
-- Inclusion filters (target roles, target industries) risk false negatives due to
-  multilingual Swiss job titles (French/German) and inconsistent Jobich industry
-  classification. The AI handles these naturally.
-- Exclusion filters are safe — a user who blocks "Pharma" will never want a Pharma job
-  regardless of title language or industry label edge cases.
+**Known limitation (backlogged):** Condition 1 is keyword-based and will miss jobs with
+equivalent titles in French or German (e.g. "Architecte d'entreprise" won't match
+"Enterprise Architect"). Workaround for users: add multilingual variants as separate
+target role entries in the role picker. Full fix deferred — see backlog.
 
 **AI context (soft signals, not hard gates):**
 `target_roles`, `target_industries`, `locations`, `remote_type` are all passed to the
