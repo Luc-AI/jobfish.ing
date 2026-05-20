@@ -1,7 +1,4 @@
-// Generated types will be placed here after running:
-// npx supabase gen types typescript --project-id YOUR_PROJECT_ID > src/lib/supabase/types.ts
-//
-// For now, define manual types that match the schema:
+// src/lib/supabase/types.ts
 
 export type Json =
   | string
@@ -60,7 +57,8 @@ export type Database = {
           id: string
           user_id: string
           target_roles: RoleSelection[]
-          industries: string[]
+          target_industries: string[]
+          excluded_industries: string[]
           locations: string[]
           excluded_companies: string[]
           updated_at: string
@@ -70,7 +68,8 @@ export type Database = {
           id?: string
           user_id: string
           target_roles?: RoleSelection[]
-          industries?: string[]
+          target_industries?: string[]
+          excluded_industries?: string[]
           locations?: string[]
           excluded_companies?: string[]
           updated_at?: string
@@ -80,7 +79,8 @@ export type Database = {
           id?: string
           user_id?: string
           target_roles?: RoleSelection[]
-          industries?: string[]
+          target_industries?: string[]
+          excluded_industries?: string[]
           locations?: string[]
           excluded_companies?: string[]
           updated_at?: string
@@ -91,16 +91,20 @@ export type Database = {
       jobs: {
         Row: {
           id: string
+          external_id: string | null
           title: string
           company: string
           location: string | null
+          remote_type: string | null
           url: string
           source: string
           description: string | null
-          scraped_at: string
           date_posted: string | null
+          job_updated_at: string | null
+          industry: string | null
+          is_active: boolean
+          synced_at: string
           employment_type: string[] | null
-          work_arrangement: string | null
           experience_level: string | null
           job_language: string | null
           working_hours: number | null
@@ -109,16 +113,20 @@ export type Database = {
         }
         Insert: {
           id?: string
+          external_id?: string | null
           title: string
           company: string
           location?: string | null
+          remote_type?: string | null
           url: string
           source: string
           description?: string | null
-          scraped_at?: string
           date_posted?: string | null
+          job_updated_at?: string | null
+          industry?: string | null
+          is_active?: boolean
+          synced_at?: string
           employment_type?: string[] | null
-          work_arrangement?: string | null
           experience_level?: string | null
           job_language?: string | null
           working_hours?: number | null
@@ -127,16 +135,20 @@ export type Database = {
         }
         Update: {
           id?: string
+          external_id?: string | null
           title?: string
           company?: string
           location?: string | null
+          remote_type?: string | null
           url?: string
           source?: string
           description?: string | null
-          scraped_at?: string
           date_posted?: string | null
+          job_updated_at?: string | null
+          industry?: string | null
+          is_active?: boolean
+          synced_at?: string
           employment_type?: string[] | null
-          work_arrangement?: string | null
           experience_level?: string | null
           job_language?: string | null
           working_hours?: number | null
@@ -237,6 +249,24 @@ export type Database = {
             referencedColumns: ["id"]
           }
         ]
+      }
+      sync_state: {
+        Row: {
+          key: string
+          last_synced_at: string
+          updated_at: string
+        }
+        Insert: {
+          key?: string
+          last_synced_at: string
+          updated_at?: string
+        }
+        Update: {
+          key?: string
+          last_synced_at?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
     }
     Views: Record<string, never>

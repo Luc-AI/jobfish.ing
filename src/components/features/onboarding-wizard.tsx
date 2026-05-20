@@ -47,7 +47,8 @@ export function OnboardingWizard({ userId, initialStep = 1 }: OnboardingWizardPr
 
   // Step 3: Preferences
   const [targetRoles, setTargetRoles] = useState<RoleSelection[]>([])
-  const [industries, setIndustries] = useState('')
+  const [targetIndustries, setTargetIndustries] = useState('')
+  const [excludedIndustries, setExcludedIndustries] = useState('')
   const [locations, setLocations] = useState<string[]>([])
   const [excludedCompanies, setExcludedCompanies] = useState('')
   const [remotePreference, setRemotePreference] = useState<RemotePreference>('hybrid')
@@ -90,7 +91,8 @@ export function OnboardingWizard({ userId, initialStep = 1 }: OnboardingWizardPr
       .upsert({
         user_id: userId,
         target_roles: targetRoles,
-        industries: parseCommaSeparated(industries),
+        target_industries: parseCommaSeparated(targetIndustries),
+        excluded_industries: parseCommaSeparated(excludedIndustries),
         locations,
         excluded_companies: parseCommaSeparated(excludedCompanies),
         remote_preference: remotePreference,
@@ -219,11 +221,19 @@ export function OnboardingWizard({ userId, initialStep = 1 }: OnboardingWizardPr
               <RolePicker value={targetRoles} onChange={setTargetRoles} />
             </div>
             <div className="space-y-1">
-              <Label>Industries</Label>
+              <Label>Preferred industries</Label>
               <Input
-                placeholder="Fintech, SaaS, VC, Deep Tech"
-                value={industries}
-                onChange={e => setIndustries(e.target.value)}
+                placeholder="Fintech, SaaS, Deep Tech"
+                value={targetIndustries}
+                onChange={e => setTargetIndustries(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label>Industries to avoid</Label>
+              <Input
+                placeholder="Pharma, Oil & Gas"
+                value={excludedIndustries}
+                onChange={e => setExcludedIndustries(e.target.value)}
               />
             </div>
             <div className="space-y-1">

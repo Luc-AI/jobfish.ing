@@ -7,7 +7,7 @@ interface EvaluationInput {
   jobDescription: string
   cvText: string
   targetRoles: RoleSelection[]
-  industries: string[]
+  targetIndustries: string[]
   locations: string[]
   excludedCompanies: string[]
 }
@@ -19,7 +19,7 @@ export function buildEvaluationPrompt(input: EvaluationInput): string {
     jobDescription,
     cvText,
     targetRoles,
-    industries,
+    targetIndustries,
     locations,
     excludedCompanies,
   } = input
@@ -42,7 +42,7 @@ ${cvText}
 ## Candidate Preferences
 - Target roles: ${roleNames}
 - Years of experience per role: ${yoeHint}
-- Preferred industries: ${industries.length > 0 ? industries.join(', ') : 'Not specified'}
+- Preferred industries: ${targetIndustries.length > 0 ? targetIndustries.join(', ') : 'Not specified'}
 - Preferred locations: ${locations.length > 0 ? locations.join(', ') : 'Not specified'}
 - Excluded companies: ${excludedCompanies.length > 0 ? excludedCompanies.join(', ') : 'None'}
 

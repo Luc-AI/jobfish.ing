@@ -16,7 +16,7 @@ const mockEvaluation = {
     location: 'Zurich',
     url: 'https://example.com/apply',
     source: 'linkedin',
-    scraped_at: '2026-04-01T00:00:00Z',
+    synced_at: '2026-04-01T00:00:00Z',
   },
   user_job_actions: null,
 }

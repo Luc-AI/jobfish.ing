@@ -29,14 +29,14 @@ describe('POST /api/onboarding/complete', () => {
     expect(res.status).toBe(401)
   })
 
-  it('returns 200 when scrape task succeeds', async () => {
+  it('returns 200 when evaluate task succeeds', async () => {
     mockGetUser.mockResolvedValueOnce({ data: { user: { id: 'user-123' } } })
     mockTriggerAndWait.mockResolvedValueOnce({ ok: true })
     const res = await POST()
     expect(res.status).toBe(200)
     expect(mockTriggerAndWait).toHaveBeenCalledWith(
-      'scrape-jobs-initial',
-      { userId: 'user-123' }
+      'evaluate-jobs',
+      { userIds: ['user-123'] }
     )
   })
 
