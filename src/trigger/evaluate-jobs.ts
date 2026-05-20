@@ -15,6 +15,8 @@ export const evaluateJobsTask = task({
   id: 'evaluate-jobs',
   retry: { maxAttempts: 2 },
   run: async ({ jobIds, userIds }: EvaluateJobsPayload) => {
+    if (!process.env.OPENROUTER_API_KEY) throw new Error('OPENROUTER_API_KEY is not set')
+
     const supabase = createServiceClient()
 
     let jobsQuery = supabase
@@ -39,7 +41,6 @@ export const evaluateJobsTask = task({
       .from('profiles')
       .select('id, cv_text')
       .eq('onboarding_completed', true)
-      .not('cv_text', 'is', null)
 
     if (userIds && userIds.length > 0) {
       profilesQuery = profilesQuery.in('id', userIds)
@@ -63,6 +64,7 @@ export const evaluateJobsTask = task({
     const prefsMap = new Map((prefsRows ?? []).map(p => [p.user_id, p]))
 
     let evaluatedCount = 0
+    const errors: string[] = []
 
     for (const user of profiles) {
       const prefs = prefsMap.get(user.id)
@@ -105,13 +107,15 @@ export const evaluateJobsTask = task({
 
           evaluatedCount++
         } catch (err) {
+          const msg = `job ${job.id} / user ${user.id}: ${err instanceof Error ? err.message : String(err)}`
           Sentry.captureException(err, { extra: { jobId: job.id, userId: user.id } })
-          console.error(`Evaluation failed for job ${job.id} / user ${user.id}:`, err)
+          console.error(`Evaluation failed for ${msg}`)
+          errors.push(msg)
         }
       }
     }
 
-    console.log(`Evaluated ${evaluatedCount} job/user pairs`)
-    return { evaluatedCount }
+    console.log(`Evaluated ${evaluatedCount} job/user pairs, ${errors.length} errors`)
+    return { evaluatedCount, errors }
   },
 })
