@@ -60,7 +60,10 @@ function setupMocks({
       return { select: () => ({ in: async () => ({ data: [prefs] }) }) }
     }
     if (table === 'job_evaluations') {
-      return { insert: async () => ({ data: { id: 'eval-1' }, error: null }) }
+      return {
+        insert: async () => ({ data: { id: 'eval-1' }, error: null }),
+        upsert: async () => ({ data: { id: 'eval-1' }, error: null })
+      }
     }
     throw new Error(`Unexpected table: ${table}`)
   })

@@ -45,7 +45,9 @@ export const evaluateJobsTask = task({
       profilesQuery = profilesQuery.in('id', userIds)
     }
 
-    const { data: profiles } = await profilesQuery
+    const { data: profiles, error: profilesError } = await profilesQuery
+
+    if (profilesError) throw profilesError
 
     if (!profiles?.length) {
       console.log('No active users to evaluate for')
@@ -89,14 +91,17 @@ export const evaluateJobsTask = task({
 
           await supabase
             .from('job_evaluations')
-            .insert({
-              job_id: job.id,
-              user_id: user.id,
-              score,
-              reasoning,
-              dimensions,
-              detailed_reasoning,
-            })
+            .upsert(
+              {
+                job_id: job.id,
+                user_id: user.id,
+                score,
+                reasoning,
+                dimensions,
+                detailed_reasoning,
+              },
+              { onConflict: 'job_id,user_id', ignoreDuplicates: true }
+            )
 
           evaluatedCount++
         } catch (err) {
