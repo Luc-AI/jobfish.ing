@@ -64,8 +64,9 @@ export const syncJobsTask = schedules.task({
       newJobIds = (inserted ?? []).map(j => j.id)
     }
 
-    await syncStateTable
+    const { error: cursorError } = await syncStateTable
       .upsert({ key: 'jobich', last_synced_at: delta.server_time, updated_at: new Date().toISOString() })
+    if (cursorError) throw new Error(`Failed to update sync cursor: ${cursorError.message}`)
 
     if (newJobIds.length > 0) {
       const result = await evaluateJobsTask.triggerAndWait({ jobIds: newJobIds })
