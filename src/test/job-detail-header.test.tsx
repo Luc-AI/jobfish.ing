@@ -11,15 +11,15 @@ const mockJob: JobDetailData['job'] = {
   url: 'https://example.com/apply',
   source: 'linkedin',
   description: null,
-  scraped_at: '2026-04-01T00:00:00Z',
+  remote_type: 'hybrid',
+  industry: null,
   date_posted: null,
+  job_updated_at: null,
+  synced_at: '2026-04-01T00:00:00Z',
   employment_type: ['full-time'],
-  work_arrangement: 'hybrid',
   experience_level: 'senior',
   job_language: 'English',
   working_hours: 40,
-  source_domain: 'linkedin.com',
-  detail_facts: null,
 }
 
 const onAction = vi.fn()

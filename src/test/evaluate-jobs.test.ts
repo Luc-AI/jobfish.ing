@@ -45,7 +45,7 @@ const mockEvalResult = {
 
 function setupMocks({
   jobs = [{ id: 'job-1', title: 'Head of Product', company: 'Acme', location: 'Zurich', description: 'Strong operator.', industry: 'IT & Software' }],
-  prefs = { user_id: 'user-1', target_roles: [{ role: 'Head of Product', yoe: 0 }], target_industries: ['SaaS'], locations: ['Zurich'], excluded_companies: [], excluded_industries: [] },
+  prefs = { user_id: 'user-1', target_roles: [{ role: 'Head of Product', yoe: 0 }], target_industries: ['SaaS'], locations: ['Zurich'], excluded_companies: [] as string[], excluded_industries: [] as string[] },
 } = {}) {
   mockFrom.mockImplementation((table: string) => {
     if (table === 'jobs') {
