@@ -10,6 +10,9 @@ CREATE OR REPLACE FUNCTION _convert_target_roles(roles text[]) RETURNS jsonb AS 
 $$ LANGUAGE sql;
 
 ALTER TABLE public.preferences
+  ALTER COLUMN target_roles DROP DEFAULT;
+
+ALTER TABLE public.preferences
   ALTER COLUMN target_roles
   TYPE jsonb
   USING _convert_target_roles(target_roles);
