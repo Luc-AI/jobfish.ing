@@ -92,7 +92,9 @@ describe('syncJobsTask', () => {
     const calledWith = mockFetchDelta.mock.calls[0][0]
     const calledDate = new Date(calledWith)
     const twentyFiveHoursAgo = new Date(Date.now() - 25 * 60 * 60 * 1000)
+    const twentyThreeHoursAgo = new Date(Date.now() - 23 * 60 * 60 * 1000)
     expect(calledDate.getTime()).toBeGreaterThan(twentyFiveHoursAgo.getTime())
+    expect(calledDate.getTime()).toBeLessThan(twentyThreeHoursAgo.getTime())
   })
 
   it('does not trigger evaluate-jobs when no new jobs are added', async () => {

@@ -58,7 +58,6 @@ export const syncJobsTask = schedules.task({
         .select('id')
 
       if (error) {
-        Sentry.captureException(error)
         throw new Error(`Failed to upsert jobs: ${error.message}`)
       }
 
