@@ -104,7 +104,7 @@ describe('evaluateJobsTask', () => {
                 {
                   user_id: 'user-1',
                   target_roles: ['Head of Product'],
-                  industries: ['SaaS'],
+                  target_industries: ['SaaS'],
                   locations: ['Zurich'],
                   excluded_companies: [],
                 },

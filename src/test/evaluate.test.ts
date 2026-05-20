@@ -8,7 +8,7 @@ const baseInput = {
   jobDescription: 'We are looking for...',
   cvText: 'My background includes...',
   targetRoles: [{ role: 'Product Manager', yoe: 3 }] as RoleSelection[],
-  industries: ['Fintech'],
+  targetIndustries: ['Fintech'],
   locations: ['Zurich'],
   excludedCompanies: [],
 }

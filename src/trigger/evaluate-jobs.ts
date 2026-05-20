@@ -49,7 +49,7 @@ export const evaluateJobsTask = task({
     const profileUserIds = profiles.map((p) => p.id)
     const { data: prefsRows } = await supabase
       .from('preferences')
-      .select('user_id, target_roles, industries, locations, excluded_companies')
+      .select('user_id, target_roles, target_industries, locations, excluded_companies')
       .in('user_id', profileUserIds)
 
     const prefsMap = new Map(
@@ -69,7 +69,7 @@ export const evaluateJobsTask = task({
             jobDescription: job.description ?? '',
             cvText: user.cv_text ?? '',
             targetRoles: (prefs?.target_roles ?? []) as RoleSelection[],
-            industries: prefs?.industries ?? [],
+            targetIndustries: prefs?.target_industries ?? [],
             locations: prefs?.locations ?? [],
             excludedCompanies: prefs?.excluded_companies ?? [],
           })
