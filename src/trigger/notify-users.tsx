@@ -5,10 +5,8 @@ import { Resend } from 'resend'
 import { JobDigestEmail, type DigestJobItem } from '@/lib/email/job-digest'
 import { createServiceClient } from '@/lib/supabase/service'
 
-const SOURCE_LABELS: Record<string, string> = {
-  linkedin: 'LinkedIn',
-  'jobs.ch': 'Jobs.ch',
-  company_site: 'Company',
+function formatSource(source: string): string {
+  return source
 }
 
 interface EvaluationJobRow {
@@ -104,7 +102,7 @@ export function buildUserDigests(
       score: evaluation.score,
       reasoning: evaluation.reasoning ?? '',
       applyUrl: job.url,
-      source: SOURCE_LABELS[job.source] ?? job.source,
+      source: formatSource(job.source),
     }
 
     if (existingDigest) {
