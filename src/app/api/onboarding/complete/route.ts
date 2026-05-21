@@ -2,6 +2,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { tasks } from '@trigger.dev/sdk'
+import type { evaluateJobsTask } from '@/trigger/evaluate-jobs'
 
 export const maxDuration = 300
 
@@ -14,7 +15,7 @@ export async function POST() {
   }
 
   try {
-    const result = await tasks.triggerAndWait(
+    const result = await tasks.triggerAndWait<typeof evaluateJobsTask>(
       'evaluate-jobs',
       { userIds: [user.id] }
     )
