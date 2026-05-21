@@ -5,8 +5,15 @@ import { Resend } from 'resend'
 import { JobDigestEmail, type DigestJobItem } from '@/lib/email/job-digest'
 import { createServiceClient } from '@/lib/supabase/service'
 
+const SOURCE_LABELS: Record<string, string> = {
+  linkedin: 'LinkedIn',
+  indeed: 'Indeed',
+  glassdoor: 'Glassdoor',
+  'jobs.ch': 'jobs.ch',
+}
+
 function formatSource(source: string): string {
-  return source
+  return SOURCE_LABELS[source.toLowerCase()] ?? source
 }
 
 interface EvaluationJobRow {
@@ -53,7 +60,7 @@ function sortEvaluations(evaluations: EvaluationRow[]): EvaluationRow[] {
 }
 
 function getDigestSubject(jobCount: number): string {
-  return `${jobCount} new job match${jobCount === 1 ? '' : 'es'} for you`
+  return `${jobCount} new job match${jobCount === 1 ? '' : 'es'} this morning`
 }
 
 function getEvaluationJob(jobs: EvaluationRow['jobs']): EvaluationJobRow | null {
@@ -70,7 +77,6 @@ export function buildUserDigests(
 ): UserDigest[] {
   const profileById = new Map(profiles.map(profile => [profile.id, profile]))
   const digestsByUser = new Map<string, UserDigest>()
-  const seenByUser = new Map<string, Set<string>>()
 
   for (const evaluation of sortEvaluations(evaluations)) {
     const profile = profileById.get(evaluation.user_id)
@@ -84,15 +90,6 @@ export function buildUserDigests(
     if (!job) {
       continue
     }
-
-    // Deduplicate: same physical job can appear with different URLs across sources
-    const jobKey = `${job.title}\0${job.company}`.toLowerCase()
-    const seenKeys = seenByUser.get(evaluation.user_id) ?? new Set<string>()
-    if (seenKeys.has(jobKey)) {
-      continue
-    }
-    seenKeys.add(jobKey)
-    seenByUser.set(evaluation.user_id, seenKeys)
 
     const existingDigest = digestsByUser.get(evaluation.user_id)
     const digestJob: DigestJobItem = {
@@ -118,9 +115,12 @@ export function buildUserDigests(
     })
   }
 
-  return [...digestsByUser.values()].sort((left, right) => {
-    return compareNullableStrings(left.userId, right.userId)
-  })
+  return [...digestsByUser.values()]
+    .sort((left, right) => compareNullableStrings(left.userId, right.userId))
+    .map(digest => ({
+      ...digest,
+      jobs: [...digest.jobs].sort((a, b) => b.score - a.score),
+    }))
 }
 
 export const notifyUsersTask = schedules.task({
@@ -129,7 +129,7 @@ export const notifyUsersTask = schedules.task({
     pattern: '0 8 * * *',
     timezone: 'Europe/Zurich',
   },
-  retry: { maxAttempts: 1 },
+  retry: { maxAttempts: 2 },
   run: async () => {
     const apiKey = process.env.RESEND_API_KEY
     if (!apiKey) {
@@ -138,7 +138,6 @@ export const notifyUsersTask = schedules.task({
 
     const resend = new Resend(apiKey)
     const supabase = createServiceClient()
-    const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
 
     const { data: evaluations, error: evaluationsError } = await supabase
       .from('job_evaluations')
@@ -157,7 +156,6 @@ export const notifyUsersTask = schedules.task({
         )
       `)
       .is('notified_at', null)
-      .gte('created_at', since)
 
     if (evaluationsError) {
       throw evaluationsError
@@ -201,13 +199,13 @@ export const notifyUsersTask = schedules.task({
 
         if (authError) {
           Sentry.captureException(authError, { extra: { userId: digest.userId } })
-          throw authError
+          continue
         }
 
         if (!user?.email) {
           const missingEmailError = new Error('Missing email for digest recipient')
           Sentry.captureException(missingEmailError, { extra: { userId: digest.userId } })
-          throw missingEmailError
+          continue
         }
 
         const html = await render(<JobDigestEmail jobs={digest.jobs} />)
@@ -224,7 +222,8 @@ export const notifyUsersTask = schedules.task({
           continue
         }
       } catch (error) {
-        throw error
+        Sentry.captureException(error, { extra: { userId: digest.userId } })
+        continue
       }
 
       const { error: updateError } = await supabase
