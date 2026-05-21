@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mockSend = vi.fn()
 const mockGetUserById = vi.fn()
@@ -7,7 +7,6 @@ const mockRender = vi.fn()
 const mockCaptureException = vi.fn()
 const mockJobEvaluationsSelect = vi.fn()
 const mockJobEvaluationsIs = vi.fn()
-const mockJobEvaluationsGte = vi.fn()
 const mockProfilesSelect = vi.fn()
 const mockProfilesIn = vi.fn()
 const mockEvaluationUpdate = vi.fn()
@@ -51,8 +50,6 @@ const { buildUserDigests, notifyUsersTask } = await import('@/trigger/notify-use
 describe('notifyUsersTask', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.useFakeTimers()
-    vi.setSystemTime(new Date('2026-04-10T06:00:00.000Z'))
 
     process.env.RESEND_API_KEY = 'test-resend-api-key'
     process.env.RESEND_FROM_EMAIL = 'jobs@jobfish.ing'
@@ -62,8 +59,7 @@ describe('notifyUsersTask', () => {
     mockEvaluationUpdateIn.mockResolvedValue({ error: null })
 
     mockJobEvaluationsSelect.mockReturnValue({ is: mockJobEvaluationsIs })
-    mockJobEvaluationsIs.mockReturnValue({ gte: mockJobEvaluationsGte })
-    mockJobEvaluationsGte.mockResolvedValue({ data: [], error: null })
+    mockJobEvaluationsIs.mockResolvedValue({ data: [], error: null })
 
     mockProfilesSelect.mockReturnValue({ in: mockProfilesIn })
     mockProfilesIn.mockResolvedValue({ data: [], error: null })
@@ -71,15 +67,28 @@ describe('notifyUsersTask', () => {
     mockEvaluationUpdate.mockReturnValue({ in: mockEvaluationUpdateIn })
   })
 
-  afterEach(() => {
-    vi.useRealTimers()
+  it('is configured with a single retry — safe because notified_at guards against double-sends', () => {
+    expect((notifyUsersTask as any).retry).toEqual({ maxAttempts: 2 })
   })
 
-  it('is configured to avoid automatic retries after a post-send failure', () => {
-    expect((notifyUsersTask as any).retry).toEqual({ maxAttempts: 1 })
+  it('formats known source labels for display', () => {
+    const digests = buildUserDigests(
+      [
+        {
+          id: 'e1',
+          score: 8.0,
+          reasoning: 'Good',
+          user_id: 'user-1',
+          jobs: { title: 'Role', company: 'Co', location: null, url: 'https://example.com', source: 'linkedin' },
+        },
+      ],
+      [{ id: 'user-1', threshold: 7, notifications_enabled: true }]
+    )
+
+    expect(digests[0].jobs[0].source).toBe('LinkedIn')
   })
 
-  it('deduplicates evaluations for the same title+company (different URLs/sources)', () => {
+  it('includes all evaluations for the same title+company without deduplication', () => {
     const digests = buildUserDigests(
       [
         {
@@ -114,11 +123,10 @@ describe('notifyUsersTask', () => {
       [{ id: 'user-1', threshold: 7, notifications_enabled: true }]
     )
 
-    // Only the first-seen evaluation for the title+company pair is included
     expect(digests).toEqual([
       {
         userId: 'user-1',
-        evaluationIds: ['evaluation-1'],
+        evaluationIds: ['evaluation-1', 'evaluation-2'],
         jobs: [
           {
             jobTitle: 'Head of Product',
@@ -127,7 +135,16 @@ describe('notifyUsersTask', () => {
             score: 8.5,
             reasoning: 'From LinkedIn',
             applyUrl: 'https://linkedin.com/jobs/123',
-            source: 'linkedin',
+            source: 'LinkedIn',
+          },
+          {
+            jobTitle: 'Head of Product',
+            company: 'Acme',
+            location: 'Zurich',
+            score: 8.2,
+            reasoning: 'From career site',
+            applyUrl: 'https://acme.com/careers/head-of-product',
+            source: 'company_site',
           },
         ],
       },
@@ -182,7 +199,7 @@ describe('notifyUsersTask', () => {
             score: 8.1,
             reasoning: 'Use the first related job',
             applyUrl: 'https://example.com/first-role',
-            source: 'linkedin',
+            source: 'LinkedIn',
           },
         ],
       },
@@ -190,7 +207,7 @@ describe('notifyUsersTask', () => {
   })
 
   it('groups qualifying evaluations into one digest per user and marks included rows as notified', async () => {
-    mockJobEvaluationsGte.mockResolvedValueOnce({
+    mockJobEvaluationsIs.mockResolvedValueOnce({
       data: [
         {
           id: 'evaluation-4',
@@ -313,7 +330,6 @@ describe('notifyUsersTask', () => {
     expect(result).toEqual({ notifiedCount: 2, evaluationCount: 3 })
     expect(mockJobEvaluationsSelect).toHaveBeenCalledWith(expect.stringContaining('created_at'))
     expect(mockJobEvaluationsIs).toHaveBeenCalledWith('notified_at', null)
-    expect(mockJobEvaluationsGte).toHaveBeenCalledWith('created_at', '2026-04-09T06:00:00.000Z')
     expect(mockProfilesIn).toHaveBeenCalledWith('id', ['user-1', 'user-2', 'user-3'])
     expect(mockGetUserById).toHaveBeenCalledTimes(2)
     expect(mockGetUserById.mock.calls).toEqual([['user-1'], ['user-2']])
@@ -328,7 +344,7 @@ describe('notifyUsersTask', () => {
           score: 8.4,
           reasoning: 'Strong match',
           applyUrl: 'https://example.com/head-of-product',
-          source: 'linkedin',
+          source: 'LinkedIn',
         },
         {
           jobTitle: 'Director of Product',
@@ -348,12 +364,16 @@ describe('notifyUsersTask', () => {
           score: 8.2,
           reasoning: 'Great leadership overlap',
           applyUrl: 'https://example.com/vp-product',
-          source: 'linkedin',
+          source: 'LinkedIn',
         },
       ],
     ])
     expect(mockSend).toHaveBeenCalledTimes(2)
     expect(mockSend.mock.calls.map(([payload]) => payload.to)).toEqual(['user-1@example.com', 'user-2@example.com'])
+    expect(mockSend.mock.calls.map(([payload]) => payload.subject)).toEqual([
+      '2 new job matches this morning',
+      '1 new job match this morning',
+    ])
     expect(mockEvaluationUpdate).toHaveBeenCalledTimes(2)
     expect(mockEvaluationUpdateIn.mock.calls).toEqual([
       ['id', ['evaluation-1', 'evaluation-2']],
@@ -370,7 +390,7 @@ describe('notifyUsersTask', () => {
   })
 
   it('does not mark evaluations notified when sending a digest fails', async () => {
-    mockJobEvaluationsGte.mockResolvedValueOnce({
+    mockJobEvaluationsIs.mockResolvedValueOnce({
       data: [
         {
           id: 'evaluation-1',
@@ -439,7 +459,7 @@ describe('notifyUsersTask', () => {
   })
 
   it('throws when sending succeeds but marking evaluations as notified fails', async () => {
-    mockJobEvaluationsGte.mockResolvedValueOnce({
+    mockJobEvaluationsIs.mockResolvedValueOnce({
       data: [
         {
           id: 'evaluation-1',
@@ -512,8 +532,8 @@ describe('notifyUsersTask', () => {
     )
   })
 
-  it('throws when a qualifying digest user has no deliverable email', async () => {
-    mockJobEvaluationsGte.mockResolvedValueOnce({
+  it('skips users with no deliverable email and continues the batch', async () => {
+    mockJobEvaluationsIs.mockResolvedValueOnce({
       data: [
         {
           id: 'evaluation-1',
@@ -539,53 +559,30 @@ describe('notifyUsersTask', () => {
     })
 
     mockGetUserById.mockResolvedValueOnce({
-      data: {
-        user: {
-          id: 'user-1',
-          email: null,
-        },
-      },
+      data: { user: { id: 'user-1', email: null } },
     })
 
     mockCreateServiceClient.mockReturnValue({
       from: (table: string) => {
-        if (table === 'job_evaluations') {
-          return {
-            select: mockJobEvaluationsSelect,
-            update: mockEvaluationUpdate,
-          }
-        }
-
-        if (table === 'profiles') {
-          return {
-            select: mockProfilesSelect,
-          }
-        }
-
+        if (table === 'job_evaluations') return { select: mockJobEvaluationsSelect, update: mockEvaluationUpdate }
+        if (table === 'profiles') return { select: mockProfilesSelect }
         throw new Error(`Unexpected table: ${table}`)
       },
-      auth: {
-        admin: {
-          getUserById: mockGetUserById,
-        },
-      },
+      auth: { admin: { getUserById: mockGetUserById } },
     })
 
-    await expect((notifyUsersTask as any).run()).rejects.toThrow('Missing email for digest recipient')
+    const result = await (notifyUsersTask as any).run()
 
+    expect(result).toEqual({ notifiedCount: 0, evaluationCount: 0 })
     expect(mockSend).not.toHaveBeenCalled()
     expect(mockEvaluationUpdate).not.toHaveBeenCalled()
     expect(mockCaptureException).toHaveBeenCalledWith(
-      expect.objectContaining({
-        message: 'Missing email for digest recipient',
-      }),
-      expect.objectContaining({
-        extra: { userId: 'user-1' },
-      })
+      expect.objectContaining({ message: 'Missing email for digest recipient' }),
+      expect.objectContaining({ extra: { userId: 'user-1' } })
     )
   })
 
-  it('returns zero counts when no unnotified evaluations were created in the last 24 hours', async () => {
+  it('returns zero counts when there are no unnotified evaluations', async () => {
     mockCreateServiceClient.mockReturnValue({
       from: (table: string) => {
         if (table === 'job_evaluations') {
@@ -617,5 +614,40 @@ describe('notifyUsersTask', () => {
     expect(mockRender).not.toHaveBeenCalled()
     expect(mockSend).not.toHaveBeenCalled()
     expect(mockEvaluationUpdate).not.toHaveBeenCalled()
+  })
+
+  it('sorts jobs by score descending within each user digest', () => {
+    const digests = buildUserDigests(
+      [
+        {
+          id: 'evaluation-1',
+          score: 7.5,
+          reasoning: 'Decent match',
+          user_id: 'user-1',
+          jobs: { title: 'Job A', company: 'Acme', location: null, url: 'https://example.com/a', source: 'linkedin' },
+        },
+        {
+          id: 'evaluation-2',
+          score: 9.0,
+          reasoning: 'Excellent match',
+          user_id: 'user-1',
+          jobs: { title: 'Job B', company: 'Acme', location: null, url: 'https://example.com/b', source: 'linkedin' },
+        },
+        {
+          id: 'evaluation-3',
+          score: 8.2,
+          reasoning: 'Strong match',
+          user_id: 'user-1',
+          jobs: { title: 'Job C', company: 'Acme', location: null, url: 'https://example.com/c', source: 'linkedin' },
+        },
+      ],
+      [{ id: 'user-1', threshold: 7, notifications_enabled: true }]
+    )
+
+    expect(digests[0].jobs.map(j => ({ score: j.score, source: j.source }))).toEqual([
+      { score: 9.0, source: 'LinkedIn' },
+      { score: 8.2, source: 'LinkedIn' },
+      { score: 7.5, source: 'LinkedIn' },
+    ])
   })
 })
