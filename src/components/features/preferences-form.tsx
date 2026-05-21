@@ -116,7 +116,10 @@ export function PreferencesForm({ defaultValues, onSave }: PreferencesFormProps)
         />
       </div>
 
-      <Button onClick={handleSave} disabled={saving}>
+      {targetRoles.length === 0 && (
+        <p className="text-xs text-destructive">At least one target role is required.</p>
+      )}
+      <Button onClick={handleSave} disabled={saving || targetRoles.length === 0}>
         {saving ? 'Saving…' : saved ? 'Saved ✓' : 'Save preferences'}
       </Button>
     </div>
