@@ -14,6 +14,8 @@ export async function savePreferences(values: {
   locations: string[]
   excludedCompanies: string[]
 }) {
+  if (!values.targetRoles?.length) throw new Error('At least one target role is required')
+
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) throw new Error('Not authenticated')

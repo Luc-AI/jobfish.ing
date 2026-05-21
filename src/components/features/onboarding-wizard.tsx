@@ -264,10 +264,13 @@ export function OnboardingWizard({ userId, initialStep = 1 }: OnboardingWizardPr
                 onChange={e => setExcludedCompanies(e.target.value)}
               />
             </div>
+            {targetRoles.length === 0 && (
+              <p className="text-xs text-destructive">Add at least one target role to continue.</p>
+            )}
             {saveError && <p className="text-sm text-destructive">{saveError}</p>}
             <div className="flex justify-between">
               <Button variant="outline" onClick={() => setStep(2)} disabled={saving}>Back</Button>
-              <Button onClick={saveStep3} disabled={saving}>
+              <Button onClick={saveStep3} disabled={saving || targetRoles.length === 0}>
                 {saving ? 'Saving…' : 'Next'}
               </Button>
             </div>
