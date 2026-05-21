@@ -5,8 +5,15 @@ import { Resend } from 'resend'
 import { JobDigestEmail, type DigestJobItem } from '@/lib/email/job-digest'
 import { createServiceClient } from '@/lib/supabase/service'
 
+const SOURCE_LABELS: Record<string, string> = {
+  linkedin: 'LinkedIn',
+  indeed: 'Indeed',
+  glassdoor: 'Glassdoor',
+  'jobs.ch': 'jobs.ch',
+}
+
 function formatSource(source: string): string {
-  return source
+  return SOURCE_LABELS[source.toLowerCase()] ?? source
 }
 
 interface EvaluationJobRow {

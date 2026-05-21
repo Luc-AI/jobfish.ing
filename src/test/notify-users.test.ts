@@ -71,6 +71,23 @@ describe('notifyUsersTask', () => {
     expect((notifyUsersTask as any).retry).toEqual({ maxAttempts: 1 })
   })
 
+  it('formats known source labels for display', () => {
+    const digests = buildUserDigests(
+      [
+        {
+          id: 'e1',
+          score: 8.0,
+          reasoning: 'Good',
+          user_id: 'user-1',
+          jobs: { title: 'Role', company: 'Co', location: null, url: 'https://example.com', source: 'linkedin' },
+        },
+      ],
+      [{ id: 'user-1', threshold: 7, notifications_enabled: true }]
+    )
+
+    expect(digests[0].jobs[0].source).toBe('LinkedIn')
+  })
+
   it('includes all evaluations for the same title+company without deduplication', () => {
     const digests = buildUserDigests(
       [
@@ -118,7 +135,7 @@ describe('notifyUsersTask', () => {
             score: 8.5,
             reasoning: 'From LinkedIn',
             applyUrl: 'https://linkedin.com/jobs/123',
-            source: 'linkedin',
+            source: 'LinkedIn',
           },
           {
             jobTitle: 'Head of Product',
@@ -182,7 +199,7 @@ describe('notifyUsersTask', () => {
             score: 8.1,
             reasoning: 'Use the first related job',
             applyUrl: 'https://example.com/first-role',
-            source: 'linkedin',
+            source: 'LinkedIn',
           },
         ],
       },
@@ -327,7 +344,7 @@ describe('notifyUsersTask', () => {
           score: 8.4,
           reasoning: 'Strong match',
           applyUrl: 'https://example.com/head-of-product',
-          source: 'linkedin',
+          source: 'LinkedIn',
         },
         {
           jobTitle: 'Director of Product',
@@ -347,7 +364,7 @@ describe('notifyUsersTask', () => {
           score: 8.2,
           reasoning: 'Great leadership overlap',
           applyUrl: 'https://example.com/vp-product',
-          source: 'linkedin',
+          source: 'LinkedIn',
         },
       ],
     ])
@@ -646,6 +663,10 @@ describe('notifyUsersTask', () => {
       [{ id: 'user-1', threshold: 7, notifications_enabled: true }]
     )
 
-    expect(digests[0].jobs.map(j => j.score)).toEqual([9.0, 8.2, 7.5])
+    expect(digests[0].jobs.map(j => ({ score: j.score, source: j.source }))).toEqual([
+      { score: 9.0, source: 'LinkedIn' },
+      { score: 8.2, source: 'LinkedIn' },
+      { score: 7.5, source: 'LinkedIn' },
+    ])
   })
 })
