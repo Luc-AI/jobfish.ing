@@ -43,6 +43,8 @@ interface OnboardingWizardProps {
   initialValues?: OnboardingInitialValues
 }
 
+const CV_MIN_CHARS = 100
+
 export function OnboardingWizard({ userId, initialStep = 1, initialValues }: OnboardingWizardProps) {
   const router = useRouter()
   const supabaseRef = useRef(createClient())
@@ -214,11 +216,15 @@ export function OnboardingWizard({ userId, initialStep = 1, initialValues }: Onb
               rows={12}
               className="resize-none font-mono text-sm"
             />
-            <p className="text-xs text-muted-foreground">{cvText.length} characters</p>
+            <p className="text-xs text-muted-foreground">
+              {cvText.trim().length < CV_MIN_CHARS
+                ? `${CV_MIN_CHARS - cvText.trim().length} more characters needed`
+                : `${cvText.trim().length} characters`}
+            </p>
             {saveError && <p className="text-sm text-destructive">{saveError}</p>}
             <div className="flex justify-between">
               <Button variant="outline" onClick={() => setStep(1)} disabled={saving}>Back</Button>
-              <Button onClick={saveStep2} disabled={saving}>
+              <Button onClick={saveStep2} disabled={saving || cvText.trim().length < CV_MIN_CHARS}>
                 {saving ? 'Saving…' : 'Next'}
               </Button>
             </div>

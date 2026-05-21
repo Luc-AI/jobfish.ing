@@ -130,4 +130,40 @@ describe('OnboardingWizard', () => {
       expect(screen.getByDisplayValue('Fintech, SaaS')).toBeInTheDocument()
     })
   })
+
+  describe('OnboardingWizard CV validation', () => {
+    it('disables Next button when CV is empty', () => {
+      render(<OnboardingWizard userId="user-1" initialStep={2} />)
+      const nextBtn = screen.getByRole('button', { name: /^next$/i })
+      expect(nextBtn).toBeDisabled()
+    })
+
+    it('shows remaining-characters hint when CV is too short', () => {
+      render(<OnboardingWizard userId="user-1" initialStep={2} />)
+      expect(screen.getByText('100 more characters needed')).toBeInTheDocument()
+    })
+
+    it('enables Next when CV meets the 100-character minimum', () => {
+      render(
+        <OnboardingWizard
+          userId="user-1"
+          initialStep={2}
+          initialValues={{ cvText: 'x'.repeat(100) }}
+        />
+      )
+      const nextBtn = screen.getByRole('button', { name: /^next$/i })
+      expect(nextBtn).not.toBeDisabled()
+    })
+
+    it('shows character count when CV meets minimum', () => {
+      render(
+        <OnboardingWizard
+          userId="user-1"
+          initialStep={2}
+          initialValues={{ cvText: 'x'.repeat(150) }}
+        />
+      )
+      expect(screen.getByText('150 characters')).toBeInTheDocument()
+    })
+  })
 })
