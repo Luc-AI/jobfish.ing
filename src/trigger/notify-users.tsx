@@ -128,7 +128,6 @@ export const notifyUsersTask = schedules.task({
 
     const resend = new Resend(apiKey)
     const supabase = createServiceClient()
-    const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
 
     const { data: evaluations, error: evaluationsError } = await supabase
       .from('job_evaluations')
@@ -147,7 +146,6 @@ export const notifyUsersTask = schedules.task({
         )
       `)
       .is('notified_at', null)
-      .gte('created_at', since)
 
     if (evaluationsError) {
       throw evaluationsError

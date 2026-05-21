@@ -7,7 +7,6 @@ const mockRender = vi.fn()
 const mockCaptureException = vi.fn()
 const mockJobEvaluationsSelect = vi.fn()
 const mockJobEvaluationsIs = vi.fn()
-const mockJobEvaluationsGte = vi.fn()
 const mockProfilesSelect = vi.fn()
 const mockProfilesIn = vi.fn()
 const mockEvaluationUpdate = vi.fn()
@@ -51,8 +50,6 @@ const { buildUserDigests, notifyUsersTask } = await import('@/trigger/notify-use
 describe('notifyUsersTask', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.useFakeTimers()
-    vi.setSystemTime(new Date('2026-04-10T06:00:00.000Z'))
 
     process.env.RESEND_API_KEY = 'test-resend-api-key'
     process.env.RESEND_FROM_EMAIL = 'jobs@jobfish.ing'
@@ -62,17 +59,12 @@ describe('notifyUsersTask', () => {
     mockEvaluationUpdateIn.mockResolvedValue({ error: null })
 
     mockJobEvaluationsSelect.mockReturnValue({ is: mockJobEvaluationsIs })
-    mockJobEvaluationsIs.mockReturnValue({ gte: mockJobEvaluationsGte })
-    mockJobEvaluationsGte.mockResolvedValue({ data: [], error: null })
+    mockJobEvaluationsIs.mockResolvedValue({ data: [], error: null })
 
     mockProfilesSelect.mockReturnValue({ in: mockProfilesIn })
     mockProfilesIn.mockResolvedValue({ data: [], error: null })
 
     mockEvaluationUpdate.mockReturnValue({ in: mockEvaluationUpdateIn })
-  })
-
-  afterEach(() => {
-    vi.useRealTimers()
   })
 
   it('is configured to avoid automatic retries after a post-send failure', () => {
@@ -198,7 +190,7 @@ describe('notifyUsersTask', () => {
   })
 
   it('groups qualifying evaluations into one digest per user and marks included rows as notified', async () => {
-    mockJobEvaluationsGte.mockResolvedValueOnce({
+    mockJobEvaluationsIs.mockResolvedValueOnce({
       data: [
         {
           id: 'evaluation-4',
@@ -321,7 +313,6 @@ describe('notifyUsersTask', () => {
     expect(result).toEqual({ notifiedCount: 2, evaluationCount: 3 })
     expect(mockJobEvaluationsSelect).toHaveBeenCalledWith(expect.stringContaining('created_at'))
     expect(mockJobEvaluationsIs).toHaveBeenCalledWith('notified_at', null)
-    expect(mockJobEvaluationsGte).toHaveBeenCalledWith('created_at', '2026-04-09T06:00:00.000Z')
     expect(mockProfilesIn).toHaveBeenCalledWith('id', ['user-1', 'user-2', 'user-3'])
     expect(mockGetUserById).toHaveBeenCalledTimes(2)
     expect(mockGetUserById.mock.calls).toEqual([['user-1'], ['user-2']])
@@ -378,7 +369,7 @@ describe('notifyUsersTask', () => {
   })
 
   it('does not mark evaluations notified when sending a digest fails', async () => {
-    mockJobEvaluationsGte.mockResolvedValueOnce({
+    mockJobEvaluationsIs.mockResolvedValueOnce({
       data: [
         {
           id: 'evaluation-1',
@@ -447,7 +438,7 @@ describe('notifyUsersTask', () => {
   })
 
   it('throws when sending succeeds but marking evaluations as notified fails', async () => {
-    mockJobEvaluationsGte.mockResolvedValueOnce({
+    mockJobEvaluationsIs.mockResolvedValueOnce({
       data: [
         {
           id: 'evaluation-1',
@@ -521,7 +512,7 @@ describe('notifyUsersTask', () => {
   })
 
   it('throws when a qualifying digest user has no deliverable email', async () => {
-    mockJobEvaluationsGte.mockResolvedValueOnce({
+    mockJobEvaluationsIs.mockResolvedValueOnce({
       data: [
         {
           id: 'evaluation-1',
