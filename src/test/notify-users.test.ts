@@ -532,7 +532,7 @@ describe('notifyUsersTask', () => {
     )
   })
 
-  it('throws when a qualifying digest user has no deliverable email', async () => {
+  it('skips users with no deliverable email and continues the batch', async () => {
     mockJobEvaluationsIs.mockResolvedValueOnce({
       data: [
         {
@@ -559,49 +559,26 @@ describe('notifyUsersTask', () => {
     })
 
     mockGetUserById.mockResolvedValueOnce({
-      data: {
-        user: {
-          id: 'user-1',
-          email: null,
-        },
-      },
+      data: { user: { id: 'user-1', email: null } },
     })
 
     mockCreateServiceClient.mockReturnValue({
       from: (table: string) => {
-        if (table === 'job_evaluations') {
-          return {
-            select: mockJobEvaluationsSelect,
-            update: mockEvaluationUpdate,
-          }
-        }
-
-        if (table === 'profiles') {
-          return {
-            select: mockProfilesSelect,
-          }
-        }
-
+        if (table === 'job_evaluations') return { select: mockJobEvaluationsSelect, update: mockEvaluationUpdate }
+        if (table === 'profiles') return { select: mockProfilesSelect }
         throw new Error(`Unexpected table: ${table}`)
       },
-      auth: {
-        admin: {
-          getUserById: mockGetUserById,
-        },
-      },
+      auth: { admin: { getUserById: mockGetUserById } },
     })
 
-    await expect((notifyUsersTask as any).run()).rejects.toThrow('Missing email for digest recipient')
+    const result = await (notifyUsersTask as any).run()
 
+    expect(result).toEqual({ notifiedCount: 0, evaluationCount: 0 })
     expect(mockSend).not.toHaveBeenCalled()
     expect(mockEvaluationUpdate).not.toHaveBeenCalled()
     expect(mockCaptureException).toHaveBeenCalledWith(
-      expect.objectContaining({
-        message: 'Missing email for digest recipient',
-      }),
-      expect.objectContaining({
-        extra: { userId: 'user-1' },
-      })
+      expect.objectContaining({ message: 'Missing email for digest recipient' }),
+      expect.objectContaining({ extra: { userId: 'user-1' } })
     )
   })
 

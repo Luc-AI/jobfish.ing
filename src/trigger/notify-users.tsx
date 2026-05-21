@@ -199,13 +199,13 @@ export const notifyUsersTask = schedules.task({
 
         if (authError) {
           Sentry.captureException(authError, { extra: { userId: digest.userId } })
-          throw authError
+          continue
         }
 
         if (!user?.email) {
           const missingEmailError = new Error('Missing email for digest recipient')
           Sentry.captureException(missingEmailError, { extra: { userId: digest.userId } })
-          throw missingEmailError
+          continue
         }
 
         const html = await render(<JobDigestEmail jobs={digest.jobs} />)
@@ -222,7 +222,8 @@ export const notifyUsersTask = schedules.task({
           continue
         }
       } catch (error) {
-        throw error
+        Sentry.captureException(error, { extra: { userId: digest.userId } })
+        continue
       }
 
       const { error: updateError } = await supabase
