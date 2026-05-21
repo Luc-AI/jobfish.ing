@@ -129,7 +129,7 @@ export const notifyUsersTask = schedules.task({
     pattern: '0 8 * * *',
     timezone: 'Europe/Zurich',
   },
-  retry: { maxAttempts: 1 },
+  retry: { maxAttempts: 2 },
   run: async () => {
     const apiKey = process.env.RESEND_API_KEY
     if (!apiKey) {

@@ -67,8 +67,8 @@ describe('notifyUsersTask', () => {
     mockEvaluationUpdate.mockReturnValue({ in: mockEvaluationUpdateIn })
   })
 
-  it('is configured to avoid automatic retries after a post-send failure', () => {
-    expect((notifyUsersTask as any).retry).toEqual({ maxAttempts: 1 })
+  it('is configured with a single retry — safe because notified_at guards against double-sends', () => {
+    expect((notifyUsersTask as any).retry).toEqual({ maxAttempts: 2 })
   })
 
   it('formats known source labels for display', () => {
