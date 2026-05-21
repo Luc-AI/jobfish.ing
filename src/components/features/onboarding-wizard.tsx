@@ -16,7 +16,7 @@ import { RolePicker } from '@/components/features/role-picker'
 import type { RoleSelection } from '@/lib/supabase/types'
 
 type WizardStep = 1 | 2 | 3 | 4 | 'loading'
-type RemotePreference = 'on-site' | 'hybrid' | 'remote-ok' | 'remote-solely'
+export type RemotePreference = 'on-site' | 'hybrid' | 'remote-ok' | 'remote-solely'
 
 const REMOTE_OPTIONS: { value: RemotePreference; label: string }[] = [
   { value: 'on-site', label: 'On-site' },
@@ -25,12 +25,25 @@ const REMOTE_OPTIONS: { value: RemotePreference; label: string }[] = [
   { value: 'remote-solely', label: 'Remote Solely' },
 ]
 
+interface OnboardingInitialValues {
+  firstName?: string
+  lastName?: string
+  cvText?: string
+  targetRoles?: RoleSelection[]
+  targetIndustries?: string
+  excludedIndustries?: string
+  locations?: string[]
+  excludedCompanies?: string
+  remotePreference?: RemotePreference
+}
+
 interface OnboardingWizardProps {
   userId: string
   initialStep?: 1 | 2 | 3 | 4
+  initialValues?: OnboardingInitialValues
 }
 
-export function OnboardingWizard({ userId, initialStep = 1 }: OnboardingWizardProps) {
+export function OnboardingWizard({ userId, initialStep = 1, initialValues }: OnboardingWizardProps) {
   const router = useRouter()
   const supabaseRef = useRef(createClient())
   const supabase = supabaseRef.current
@@ -39,19 +52,19 @@ export function OnboardingWizard({ userId, initialStep = 1 }: OnboardingWizardPr
   const [saveError, setSaveError] = useState<string | null>(null)
 
   // Step 1: Name
-  const [firstName, setFirstName] = useState('')
-  const [lastName, setLastName] = useState('')
+  const [firstName, setFirstName] = useState(initialValues?.firstName ?? '')
+  const [lastName, setLastName] = useState(initialValues?.lastName ?? '')
 
   // Step 2: CV
-  const [cvText, setCvText] = useState('')
+  const [cvText, setCvText] = useState(initialValues?.cvText ?? '')
 
   // Step 3: Preferences
-  const [targetRoles, setTargetRoles] = useState<RoleSelection[]>([])
-  const [targetIndustries, setTargetIndustries] = useState('')
-  const [excludedIndustries, setExcludedIndustries] = useState('')
-  const [locations, setLocations] = useState<string[]>([])
-  const [excludedCompanies, setExcludedCompanies] = useState('')
-  const [remotePreference, setRemotePreference] = useState<RemotePreference>('hybrid')
+  const [targetRoles, setTargetRoles] = useState<RoleSelection[]>(initialValues?.targetRoles ?? [])
+  const [targetIndustries, setTargetIndustries] = useState(initialValues?.targetIndustries ?? '')
+  const [excludedIndustries, setExcludedIndustries] = useState(initialValues?.excludedIndustries ?? '')
+  const [locations, setLocations] = useState<string[]>(initialValues?.locations ?? [])
+  const [excludedCompanies, setExcludedCompanies] = useState(initialValues?.excludedCompanies ?? '')
+  const [remotePreference, setRemotePreference] = useState<RemotePreference>(initialValues?.remotePreference ?? 'hybrid')
 
   // Step 4: Notifications
   const [threshold, setThreshold] = useState(7.0)

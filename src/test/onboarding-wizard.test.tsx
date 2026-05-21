@@ -4,13 +4,11 @@ import userEvent from '@testing-library/user-event'
 import { OnboardingWizard } from '@/components/features/onboarding-wizard'
 
 const mockUpsert = vi.fn().mockResolvedValue({ error: null })
-const mockUpdate = vi.fn(() => ({ eq: vi.fn().mockResolvedValue({ error: null }) }))
 
 vi.mock('@/lib/supabase/client', () => ({
   createClient: vi.fn(() => ({
     from: vi.fn(() => ({
       upsert: mockUpsert,
-      update: mockUpdate,
     })),
   })),
 }))
@@ -82,5 +80,54 @@ describe('OnboardingWizard', () => {
     render(<OnboardingWizard {...defaultProps} initialStep={4} />)
     expect(screen.getByText(/notifications/i)).toBeInTheDocument()
     expect(screen.getByText('4 of 4')).toBeInTheDocument()
+  })
+
+  describe('resume logic', () => {
+    it('renders step 2 when initialStep=2 with pre-filled cvText', () => {
+      render(
+        <OnboardingWizard
+          {...defaultProps}
+          initialStep={2}
+          initialValues={{ firstName: 'Ada', lastName: 'Lovelace', cvText: 'x'.repeat(100) }}
+        />
+      )
+      expect(screen.getByText(/your cv/i)).toBeInTheDocument()
+      expect(screen.getByDisplayValue('x'.repeat(100))).toBeInTheDocument()
+    })
+
+    it('renders step 3 when initialStep=3', () => {
+      render(
+        <OnboardingWizard
+          {...defaultProps}
+          initialStep={3}
+          initialValues={{ firstName: 'Ada', lastName: 'Lovelace', cvText: 'x'.repeat(100) }}
+        />
+      )
+      expect(screen.getByText(/preferences/i)).toBeInTheDocument()
+      expect(screen.getByText('3 of 4')).toBeInTheDocument()
+    })
+
+    it('pre-fills firstName and lastName from initialValues', () => {
+      render(
+        <OnboardingWizard
+          {...defaultProps}
+          initialStep={1}
+          initialValues={{ firstName: 'Ada', lastName: 'Lovelace' }}
+        />
+      )
+      expect(screen.getByDisplayValue('Ada')).toBeInTheDocument()
+      expect(screen.getByDisplayValue('Lovelace')).toBeInTheDocument()
+    })
+
+    it('pre-fills targetIndustries when provided', () => {
+      render(
+        <OnboardingWizard
+          {...defaultProps}
+          initialStep={3}
+          initialValues={{ targetIndustries: 'Fintech, SaaS' }}
+        />
+      )
+      expect(screen.getByDisplayValue('Fintech, SaaS')).toBeInTheDocument()
+    })
   })
 })
