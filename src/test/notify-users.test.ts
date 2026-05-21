@@ -79,7 +79,7 @@ describe('notifyUsersTask', () => {
     expect((notifyUsersTask as any).retry).toEqual({ maxAttempts: 1 })
   })
 
-  it('deduplicates evaluations for the same title+company (different URLs/sources)', () => {
+  it('includes all evaluations for the same title+company without deduplication', () => {
     const digests = buildUserDigests(
       [
         {
@@ -114,11 +114,10 @@ describe('notifyUsersTask', () => {
       [{ id: 'user-1', threshold: 7, notifications_enabled: true }]
     )
 
-    // Only the first-seen evaluation for the title+company pair is included
     expect(digests).toEqual([
       {
         userId: 'user-1',
-        evaluationIds: ['evaluation-1'],
+        evaluationIds: ['evaluation-1', 'evaluation-2'],
         jobs: [
           {
             jobTitle: 'Head of Product',
@@ -128,6 +127,15 @@ describe('notifyUsersTask', () => {
             reasoning: 'From LinkedIn',
             applyUrl: 'https://linkedin.com/jobs/123',
             source: 'linkedin',
+          },
+          {
+            jobTitle: 'Head of Product',
+            company: 'Acme',
+            location: 'Zurich',
+            score: 8.2,
+            reasoning: 'From career site',
+            applyUrl: 'https://acme.com/careers/head-of-product',
+            source: 'company_site',
           },
         ],
       },
