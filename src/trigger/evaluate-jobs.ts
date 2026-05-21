@@ -27,7 +27,8 @@ export const evaluateJobsTask = task({
     if (jobIds && jobIds.length > 0) {
       jobsQuery = jobsQuery.in('id', jobIds)
     } else {
-      jobsQuery = jobsQuery.order('job_updated_at', { ascending: false }).limit(100)
+      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+      jobsQuery = jobsQuery.gte('date_posted', sevenDaysAgo)
     }
 
     const { data: jobs, error: jobsError } = await jobsQuery
