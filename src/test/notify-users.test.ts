@@ -370,6 +370,10 @@ describe('notifyUsersTask', () => {
     ])
     expect(mockSend).toHaveBeenCalledTimes(2)
     expect(mockSend.mock.calls.map(([payload]) => payload.to)).toEqual(['user-1@example.com', 'user-2@example.com'])
+    expect(mockSend.mock.calls.map(([payload]) => payload.subject)).toEqual([
+      '2 new job matches this morning',
+      '1 new job match this morning',
+    ])
     expect(mockEvaluationUpdate).toHaveBeenCalledTimes(2)
     expect(mockEvaluationUpdateIn.mock.calls).toEqual([
       ['id', ['evaluation-1', 'evaluation-2']],

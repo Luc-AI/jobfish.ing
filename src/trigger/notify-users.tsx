@@ -60,7 +60,7 @@ function sortEvaluations(evaluations: EvaluationRow[]): EvaluationRow[] {
 }
 
 function getDigestSubject(jobCount: number): string {
-  return `${jobCount} new job match${jobCount === 1 ? '' : 'es'} for you`
+  return `${jobCount} new job match${jobCount === 1 ? '' : 'es'} this morning`
 }
 
 function getEvaluationJob(jobs: EvaluationRow['jobs']): EvaluationJobRow | null {
