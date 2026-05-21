@@ -582,7 +582,7 @@ describe('notifyUsersTask', () => {
     )
   })
 
-  it('returns zero counts when no unnotified evaluations were created in the last 24 hours', async () => {
+  it('returns zero counts when there are no unnotified evaluations', async () => {
     mockCreateServiceClient.mockReturnValue({
       from: (table: string) => {
         if (table === 'job_evaluations') {
