@@ -4,13 +4,23 @@ import userEvent from '@testing-library/user-event'
 import ResetPasswordPage from '@/app/(auth)/reset-password/page'
 
 const mockUpdateUser = vi.fn()
+const mockGetUser = vi.fn()
+const mockSingle = vi.fn()
 const mockPush = vi.fn()
 
 vi.mock('@/lib/supabase/client', () => ({
   createClient: vi.fn(() => ({
     auth: {
       updateUser: mockUpdateUser,
+      getUser: mockGetUser,
     },
+    from: vi.fn().mockReturnValue({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          single: mockSingle,
+        }),
+      }),
+    }),
   })),
 }))
 
@@ -19,8 +29,10 @@ vi.mock('next/navigation', () => ({
 }))
 
 beforeEach(() => {
+  vi.clearAllMocks()
   mockUpdateUser.mockResolvedValue({ error: null })
-  mockPush.mockReset()
+  mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+  mockSingle.mockResolvedValue({ data: { onboarding_completed: true } })
 })
 
 describe('ResetPasswordPage', () => {
@@ -43,7 +55,28 @@ describe('ResetPasswordPage', () => {
     })
   })
 
-  it('redirects to /dashboard on success', async () => {
+  it('redirects to /dashboard when onboarding is complete', async () => {
+    mockSingle.mockResolvedValue({ data: { onboarding_completed: true } })
+    render(<ResetPasswordPage />)
+    await userEvent.type(screen.getByLabelText(/new password/i), 'newSecurePass123')
+    await userEvent.click(screen.getByRole('button', { name: /update password/i }))
+    await waitFor(() => {
+      expect(mockPush).toHaveBeenCalledWith('/dashboard')
+    })
+  })
+
+  it('redirects to /onboarding when onboarding is incomplete', async () => {
+    mockSingle.mockResolvedValue({ data: { onboarding_completed: false } })
+    render(<ResetPasswordPage />)
+    await userEvent.type(screen.getByLabelText(/new password/i), 'newSecurePass123')
+    await userEvent.click(screen.getByRole('button', { name: /update password/i }))
+    await waitFor(() => {
+      expect(mockPush).toHaveBeenCalledWith('/onboarding')
+    })
+  })
+
+  it('redirects to /dashboard when profile fetch returns null', async () => {
+    mockSingle.mockResolvedValue({ data: null })
     render(<ResetPasswordPage />)
     await userEvent.type(screen.getByLabelText(/new password/i), 'newSecurePass123')
     await userEvent.click(screen.getByRole('button', { name: /update password/i }))

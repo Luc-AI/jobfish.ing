@@ -24,8 +24,22 @@ export default function ResetPasswordPage() {
       setLoading(false)
       return
     }
+    const { data: { user } } = await supabase.auth.getUser()
+    if (user) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('onboarding_completed')
+        .eq('id', user.id)
+        .single()
+      if (profile === null) {
+        router.push('/dashboard')
+      } else {
+        router.push(profile.onboarding_completed ? '/dashboard' : '/onboarding')
+      }
+    } else {
+      router.push('/dashboard')
+    }
     setLoading(false)
-    router.push('/dashboard')
   }
 
   return (
