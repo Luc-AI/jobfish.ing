@@ -617,4 +617,35 @@ describe('notifyUsersTask', () => {
     expect(mockSend).not.toHaveBeenCalled()
     expect(mockEvaluationUpdate).not.toHaveBeenCalled()
   })
+
+  it('sorts jobs by score descending within each user digest', () => {
+    const digests = buildUserDigests(
+      [
+        {
+          id: 'evaluation-1',
+          score: 7.5,
+          reasoning: 'Decent match',
+          user_id: 'user-1',
+          jobs: { title: 'Job A', company: 'Acme', location: null, url: 'https://example.com/a', source: 'linkedin' },
+        },
+        {
+          id: 'evaluation-2',
+          score: 9.0,
+          reasoning: 'Excellent match',
+          user_id: 'user-1',
+          jobs: { title: 'Job B', company: 'Acme', location: null, url: 'https://example.com/b', source: 'linkedin' },
+        },
+        {
+          id: 'evaluation-3',
+          score: 8.2,
+          reasoning: 'Strong match',
+          user_id: 'user-1',
+          jobs: { title: 'Job C', company: 'Acme', location: null, url: 'https://example.com/c', source: 'linkedin' },
+        },
+      ],
+      [{ id: 'user-1', threshold: 7, notifications_enabled: true }]
+    )
+
+    expect(digests[0].jobs.map(j => j.score)).toEqual([9.0, 8.2, 7.5])
+  })
 })

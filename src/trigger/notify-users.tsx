@@ -108,9 +108,12 @@ export function buildUserDigests(
     })
   }
 
-  return [...digestsByUser.values()].sort((left, right) => {
-    return compareNullableStrings(left.userId, right.userId)
-  })
+  return [...digestsByUser.values()]
+    .sort((left, right) => compareNullableStrings(left.userId, right.userId))
+    .map(digest => ({
+      ...digest,
+      jobs: [...digest.jobs].sort((a, b) => b.score - a.score),
+    }))
 }
 
 export const notifyUsersTask = schedules.task({
