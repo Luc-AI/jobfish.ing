@@ -1,8 +1,16 @@
 // src/test/cv-upload-route.test.ts
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-const mockGetUser = vi.fn()
-const mockUpsert = vi.fn().mockResolvedValue({ error: null })
+const { mockGetUser, mockUpsert, mockGetText, MockPDFParse } = vi.hoisted(() => {
+  const mockGetText = vi.fn()
+  const MockPDFParse = vi.fn(function () { return { getText: mockGetText } })
+  return {
+    mockGetUser: vi.fn(),
+    mockUpsert: vi.fn().mockResolvedValue({ error: null }),
+    mockGetText,
+    MockPDFParse,
+  }
+})
 
 vi.mock('@/lib/supabase/server', () => ({
   createClient: vi.fn(async () => ({
@@ -12,11 +20,8 @@ vi.mock('@/lib/supabase/server', () => ({
 }))
 
 vi.mock('pdf-parse', () => ({
-  default: vi.fn(),
+  PDFParse: MockPDFParse,
 }))
-
-import pdfParse from 'pdf-parse'
-const mockPdfParse = vi.mocked(pdfParse)
 
 function makeRequest(file: File | null) {
   const formData = new FormData()
@@ -65,7 +70,7 @@ describe('POST /api/cv/upload', () => {
 
   it('returns 422 with code extraction_failed when pdf-parse throws', async () => {
     mockGetUser.mockResolvedValueOnce({ data: { user: { id: 'user-1' } } })
-    mockPdfParse.mockRejectedValueOnce(new Error('bad pdf'))
+    mockGetText.mockRejectedValueOnce(new Error('bad pdf'))
     const req = makeRequest(makeFile('cv.pdf', 'application/pdf', 100))
     const res = await POST(req)
     expect(res.status).toBe(422)
@@ -75,7 +80,7 @@ describe('POST /api/cv/upload', () => {
 
   it('returns 200 with extractedText on valid PDF', async () => {
     mockGetUser.mockResolvedValueOnce({ data: { user: { id: 'user-1' } } })
-    mockPdfParse.mockResolvedValueOnce({ text: '  Ada Lovelace, Software Engineer  ' } as never)
+    mockGetText.mockResolvedValueOnce({ text: '  Ada Lovelace, Software Engineer  ' })
     const req = makeRequest(makeFile('cv.pdf', 'application/pdf', 100))
     const res = await POST(req)
     expect(res.status).toBe(200)

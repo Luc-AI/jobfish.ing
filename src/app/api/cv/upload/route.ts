@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import pdfParse from 'pdf-parse'
+import { PDFParse } from 'pdf-parse'
 
 const MAX_BYTES = 10 * 1024 * 1024 // 10 MB
 
@@ -38,9 +38,11 @@ export async function POST(req: NextRequest) {
   let extractedText: string
   try {
     const buffer = Buffer.from(await file.arrayBuffer())
-    const result = await pdfParse(buffer)
+    const parser = new PDFParse({ data: buffer })
+    const result = await parser.getText()
     extractedText = result.text.trim()
-  } catch {
+  } catch (err) {
+    console.error('[cv/upload] pdf-parse error:', err)
     return NextResponse.json(
       {
         error: 'Could not extract text from this PDF. Try copying and pasting your CV text instead.',
