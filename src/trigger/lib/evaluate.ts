@@ -3,12 +3,15 @@ import { scoreResponseSchema, type ScoreResponse } from './score-schema'
 interface EvaluationInput {
   jobTitle: string
   jobCompany: string
+  jobLocation: string | null
+  jobIndustry: string | null
   jobDescription: string
   cvText: string
   targetRoles: { role: string }[]
   targetIndustries: string[]
   locations: string[]
   excludedCompanies: string[]
+  excludedIndustries: string[]
   yearsExperience: number
 }
 
@@ -16,12 +19,15 @@ export function buildEvaluationPrompt(input: EvaluationInput): string {
   const {
     jobTitle,
     jobCompany,
+    jobLocation,
+    jobIndustry,
     jobDescription,
     cvText,
     targetRoles,
     targetIndustries,
     locations,
     excludedCompanies,
+    excludedIndustries,
     yearsExperience,
   } = input
 
@@ -45,16 +51,56 @@ ${cvText}
 - Preferred industries: ${targetIndustries.length > 0 ? targetIndustries.join(', ') : 'Not specified'}
 - Preferred locations: ${locations.length > 0 ? locations.join(', ') : 'Not specified'}
 - Excluded companies: ${excludedCompanies.length > 0 ? excludedCompanies.join(', ') : 'None'}
+- Excluded industries: ${excludedIndustries.length > 0 ? excludedIndustries.join(', ') : 'None'}
 
 ## Job Posting
 Title: ${jobTitle}
 Company: ${jobCompany}
+Location: ${jobLocation ?? 'Not specified'}
+Industry: ${jobIndustry ?? 'Not specified'}
 Description:
 ${jobDescription}
 
 ## Instructions
-Score how well this job matches the candidate on a scale of 0.0–10.0.
-Be honest and critical — scores above 8.0 should be rare and genuinely exceptional matches.
+
+Score how well this job matches the candidate on a scale of 0.0–10.0 using the five dimensions below. Be critical — scores above 8.0 are reserved for genuinely exceptional matches, not merely adequate ones.
+
+### Dimension Definitions
+
+**role_fit** — How closely does the job title, required skills, and described responsibilities align with the candidate's target roles and demonstrated CV experience?
+- 0–3: Fundamentally different function (e.g. candidate is a software engineer, role is in sales)
+- 4–6: Adjacent or overlapping — some transferable skills but meaningful gaps
+- 7–8: Clear alignment between title/responsibilities and the candidate's background
+- 9–10: Precise match — title, required skills, and day-to-day work map directly onto CV evidence
+
+**domain_fit** — How well does the company's industry and business domain match the candidate's preferred industries and prior domain experience? Use the Job Industry field as the primary signal; fall back to company/description context only if Industry is "Not specified".
+- 0–3: Industry is in the candidate's excluded list, or is a clear mismatch with stated preferences
+- 4–6: Neutral — candidate shows no strong domain preference, or the industry is acceptable but not preferred
+- 7–8: Industry matches a stated preference, or the candidate has demonstrated relevant domain experience
+- 9–10: Industry is a top preference and the candidate has deep domain expertise in it
+
+**experience_fit** — Does the candidate's seniority and years of experience match what the role requires? Parse seniority signals from the job title (Junior / Mid / Senior / Lead / Principal / Director) and description requirements.
+- 0–3: Major mismatch — junior role for a highly experienced candidate, or a senior/director role for someone early-career
+- 4–6: Mild over- or under-qualification — the candidate could do the role but it is not the right level
+- 7–8: Candidate's experience level fits the role's expectations
+- 9–10: Candidate's years and seniority are an excellent match for the stated requirements
+
+**location_fit** — How well does the job's location align with the candidate's location preferences? Use the Job Location field as the primary signal — do not infer location from description text.
+- If the job is fully remote: score 8 unless the candidate explicitly prefers on-site only
+- If Job Location matches one of the candidate's preferred locations: score 8–10
+- If Job Location is in a different city or country from all preferences: score 2–5
+- If the candidate has no stated location preferences ("Not specified"): score 7 (neutral)
+- If Job Location is "Not specified": score 6 (cannot assess — slight uncertainty penalty)
+
+**upside** — Does this role represent meaningful career growth or strategic positioning beyond just "it fits"? Consider: step up in seniority, entry into a more prestigious company or sector, new high-value technical domain, leadership opportunity.
+- 0–3: Lateral or backward move — no clear growth angle relative to the candidate's trajectory
+- 4–6: Reasonable next step but nothing distinctive
+- 7–8: Clear growth vector — seniority step up, stronger brand, or meaningful skill expansion
+- 9–10: Outstanding opportunity — rare combination of strong fit and high growth potential
+
+### Overall Score
+
+Weight role_fit and experience_fit most heavily — a job that misses on either cannot score above 7.0 regardless of other dimensions. A clear location mismatch when the candidate has stated preferences caps the overall score at 6.5. upside is a bonus signal, not a primary driver.
 
 Respond with ONLY valid JSON in this exact format:
 {
