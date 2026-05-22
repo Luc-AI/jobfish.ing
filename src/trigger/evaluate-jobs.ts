@@ -40,7 +40,7 @@ export const evaluateJobsTask = task({
 
     let profilesQuery = supabase
       .from('profiles')
-      .select('id, cv_text')
+      .select('id, cv_text, years_experience')
       .eq('onboarding_completed', true)
 
     if (userIds && userIds.length > 0) {
@@ -87,6 +87,7 @@ export const evaluateJobsTask = task({
             targetIndustries: (prefs?.target_industries ?? []) as string[],
             locations: prefs?.locations ?? [],
             excludedCompanies: prefs?.excluded_companies ?? [],
+            yearsExperience: user.years_experience ?? 0,
           })
 
           const rawResponse = await callOpenRouter(prompt)
