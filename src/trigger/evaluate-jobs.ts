@@ -9,15 +9,20 @@ import { filterJobsForUser } from './lib/pre-filter'
 interface EvaluateJobsPayload {
   jobIds?: string[]
   userIds?: string[]
+  since?: string  // YYYY-MM-DD; defaults to 7 days ago
+  until?: string  // YYYY-MM-DD; exclusive upper bound for date_posted
+  phase?: 'onboarding-1' | 'onboarding-2' | 'cron'
 }
 
 export const evaluateJobsTask = task({
   id: 'evaluate-jobs',
   retry: { maxAttempts: 2 },
-  run: async ({ jobIds, userIds }: EvaluateJobsPayload) => {
+  run: async ({ jobIds, userIds, since, until, phase }: EvaluateJobsPayload) => {
     if (!process.env.OPENROUTER_API_KEY) throw new Error('OPENROUTER_API_KEY is not set')
 
     const supabase = createServiceClient()
+
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
 
     let jobsQuery = supabase
       .from('jobs')
@@ -27,8 +32,8 @@ export const evaluateJobsTask = task({
     if (jobIds && jobIds.length > 0) {
       jobsQuery = jobsQuery.in('id', jobIds)
     } else {
-      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-      jobsQuery = jobsQuery.gte('date_posted', sevenDaysAgo)
+      jobsQuery = jobsQuery.gte('date_posted', since ?? sevenDaysAgo)
+      if (until) jobsQuery = jobsQuery.lt('date_posted', until)
     }
 
     const { data: jobs, error: jobsError } = await jobsQuery
@@ -104,17 +109,24 @@ export const evaluateJobsTask = task({
                 dimensions,
                 detailed_reasoning,
               },
-              { onConflict: 'job_id,user_id', ignoreDuplicates: true }
+              { onConflict: 'job_id,user_id', ignoreDuplicates: true },
             )
 
           evaluatedCount++
         } catch (err) {
           const msg = `job ${job.id} / user ${user.id}: ${err instanceof Error ? err.message : String(err)}`
-          Sentry.captureException(err, { extra: { jobId: job.id, userId: user.id } })
+          Sentry.captureException(err, { extra: { jobId: job.id, userId: user.id, phase } })
           console.error(`Evaluation failed for ${msg}`)
           errors.push(msg)
         }
       }
+    }
+
+    if (phase === 'onboarding-2' && errors.length > 0) {
+      Sentry.captureMessage('onboarding phase-2: evaluation errors', {
+        level: 'warning',
+        extra: { userId: userIds?.[0], errorCount: errors.length, errors },
+      })
     }
 
     console.log(`Evaluated ${evaluatedCount} job/user pairs, ${errors.length} errors`)
