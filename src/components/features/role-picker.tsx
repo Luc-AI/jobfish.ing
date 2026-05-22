@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { LayoutGrid, Clock } from 'lucide-react'
+import { LayoutGrid } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { ROLE_TAXONOMY } from '@/lib/roles'
 import type { RoleSelection } from '@/lib/supabase/types'
@@ -11,28 +11,16 @@ interface RolePickerProps {
   onChange: (value: RoleSelection[]) => void
 }
 
-/**
- * Normalizes whatever the DB returns into a clean RoleSelection[].
- * Handles three formats gracefully:
- *   - Legacy string[]         e.g. "Product Manager"
- *   - Old object {role, minYoe, maxYoe}
- *   - Current object {role, yoe}
- */
 function normalize(raw: unknown[]): RoleSelection[] {
   return raw.flatMap((item) => {
     if (typeof item === 'string') {
       const role = item.trim()
-      return role ? [{ role, yoe: 0 }] : []
+      return role ? [{ role }] : []
     }
     if (item && typeof item === 'object') {
       const r = item as Record<string, unknown>
       const role = typeof r.role === 'string' ? r.role.trim() : ''
-      if (!role) return []
-      const yoe =
-        typeof r.yoe === 'number' ? r.yoe
-        : typeof r.minYoe === 'number' ? r.minYoe
-        : 0
-      return [{ role, yoe }]
+      return role ? [{ role }] : []
     }
     return []
   })
@@ -53,16 +41,8 @@ export function RolePicker({ value, onChange }: RolePickerProps) {
     if (selectedRoles.has(role)) {
       emit(normalized.filter((r) => r.role !== role))
     } else {
-      emit([...normalized, { role, yoe: 0 }])
+      emit([...normalized, { role }])
     }
-  }
-
-  function updateYoe(role: string, delta: number) {
-    emit(
-      normalized.map((r) =>
-        r.role !== role ? r : { ...r, yoe: Math.max(0, r.yoe + delta) }
-      )
-    )
   }
 
   function getCategoryCount(categoryId: string): number {
@@ -152,51 +132,6 @@ export function RolePicker({ value, onChange }: RolePickerProps) {
         </div>
       )}
 
-      {/* YoE section */}
-      {normalized.length > 0 && (
-        <div className="space-y-2 pt-1">
-          <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            <Clock className="h-3.5 w-3.5" />
-            YEARS OF EXPERIENCE
-          </p>
-          {normalized.map((r) => (
-            <div key={r.role} className="flex items-center gap-3 text-sm">
-              <span className="flex-1 truncate">{r.role}</span>
-              <Counter value={r.yoe} onChange={(delta) => updateYoe(r.role, delta)} />
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
-
-function Counter({
-  value,
-  onChange,
-}: {
-  value: number
-  onChange: (delta: number) => void
-}) {
-  return (
-    <div className="flex items-center gap-0.5">
-      <button
-        type="button"
-        onClick={() => onChange(-1)}
-        aria-label="decrease"
-        className="flex h-6 w-6 items-center justify-center rounded border border-border text-sm hover:border-primary"
-      >
-        −
-      </button>
-      <span className="w-6 text-center tabular-nums text-sm">{value}</span>
-      <button
-        type="button"
-        onClick={() => onChange(1)}
-        aria-label="increase"
-        className="flex h-6 w-6 items-center justify-center rounded border border-border text-sm hover:border-primary"
-      >
-        +
-      </button>
     </div>
   )
 }

@@ -10,7 +10,6 @@ export type Json =
 
 export type RoleSelection = {
   role: string
-  yoe: number
 }
 
 export type Database = {
@@ -27,6 +26,7 @@ export type Database = {
           updated_at: string
           first_name: string | null
           last_name: string | null
+          years_experience: number
         }
         Insert: {
           id: string
@@ -38,6 +38,7 @@ export type Database = {
           updated_at?: string
           first_name?: string | null
           last_name?: string | null
+          years_experience?: number
         }
         Update: {
           id?: string
@@ -49,6 +50,7 @@ export type Database = {
           updated_at?: string
           first_name?: string | null
           last_name?: string | null
+          years_experience?: number
         }
         Relationships: []
       }

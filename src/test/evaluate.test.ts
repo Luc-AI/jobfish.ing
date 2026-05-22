@@ -1,16 +1,16 @@
 import { describe, it, expect } from 'vitest'
 import { buildEvaluationPrompt, parseEvaluationResponse } from '@/trigger/lib/evaluate'
-import type { RoleSelection } from '@/lib/supabase/types'
 
 const baseInput = {
   jobTitle: 'Head of Product',
   jobCompany: 'Acme Corp',
   jobDescription: 'We are looking for...',
   cvText: 'My background includes...',
-  targetRoles: [{ role: 'Product Manager', yoe: 3 }] as RoleSelection[],
+  targetRoles: [{ role: 'Product Manager' }],
   targetIndustries: ['Fintech'],
   locations: ['Zurich'],
   excludedCompanies: [],
+  yearsExperience: 0,
 }
 
 const validResponse = {
@@ -68,17 +68,29 @@ describe('buildEvaluationPrompt', () => {
     expect(prompt).not.toContain('growth_potential')
   })
 
-  it('includes YoE hint in the prompt', () => {
+  it('includes role name in the prompt', () => {
     const prompt = buildEvaluationPrompt(baseInput)
-    expect(prompt).toContain('Product Manager: 3+ yrs')
+    expect(prompt).toContain('Product Manager')
   })
 
-  it('renders yoe 0 as "any" in the YoE hint', () => {
-    const input = {
-      ...baseInput,
-      targetRoles: [{ role: 'Product Manager', yoe: 0 }] as RoleSelection[],
-    }
-    expect(buildEvaluationPrompt(input)).toContain('Product Manager: any yrs')
+  it('includes "Years of total experience" line in prompt', () => {
+    expect(buildEvaluationPrompt(baseInput)).toContain('Years of total experience')
+  })
+
+  it('does not include "per role" experience breakdown', () => {
+    expect(buildEvaluationPrompt(baseInput)).not.toContain('per role')
+  })
+
+  it('formats yearsExperience=0 as "not specified"', () => {
+    expect(buildEvaluationPrompt({ ...baseInput, yearsExperience: 0 })).toContain('not specified')
+  })
+
+  it('formats yearsExperience=5 as "5+ years"', () => {
+    expect(buildEvaluationPrompt({ ...baseInput, yearsExperience: 5 })).toContain('5+ years')
+  })
+
+  it('formats yearsExperience=10 as "10+ years"', () => {
+    expect(buildEvaluationPrompt({ ...baseInput, yearsExperience: 10 })).toContain('10+ years')
   })
 })
 

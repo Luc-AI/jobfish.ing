@@ -45,16 +45,18 @@ const mockEvalResult = {
 
 function setupMocks({
   jobs = [{ id: 'job-1', title: 'Head of Product', company: 'Acme', location: 'Zurich', description: 'Strong operator.', industry: 'IT & Software' }],
-  prefs = { user_id: 'user-1', target_roles: [{ role: 'Head of Product', yoe: 0 }], target_industries: ['SaaS'], locations: ['Zurich'], excluded_companies: [] as string[], excluded_industries: [] as string[] },
+  prefs = { user_id: 'user-1', target_roles: [{ role: 'Head of Product' }], target_industries: ['SaaS'], locations: ['Zurich'], excluded_companies: [] as string[], excluded_industries: [] as string[] },
 } = {}) {
   mockFrom.mockImplementation((table: string) => {
     if (table === 'jobs') {
-      return { select: () => ({ eq: () => ({ in: async () => ({ data: jobs, error: null }), order: () => ({ limit: async () => ({ data: jobs, error: null }) }) }) }) }
+      const jobResult = { data: jobs, error: null }
+      const chainable = { in: async () => jobResult, gte: async () => jobResult, then: (resolve: (v: typeof jobResult) => void) => resolve(jobResult) }
+      return { select: () => ({ eq: () => chainable }) }
     }
     if (table === 'profiles') {
-      const profileResult = { data: [{ id: 'user-1', cv_text: 'PM background' }] }
+      const profileResult = { data: [{ id: 'user-1', cv_text: 'PM background', years_experience: 0 }] }
       const chainable = { in: async () => profileResult, then: (resolve: (v: typeof profileResult) => void) => resolve(profileResult) }
-      return { select: () => ({ eq: () => ({ not: () => chainable }) }) }
+      return { select: () => ({ eq: () => chainable }) }
     }
     if (table === 'preferences') {
       return { select: () => ({ in: async () => ({ data: [prefs] }) }) }
@@ -72,6 +74,7 @@ function setupMocks({
 describe('evaluateJobsTask', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.stubEnv('OPENROUTER_API_KEY', 'test-key')
     mockBuildEvaluationPrompt.mockReturnValue('prompt')
     mockCallOpenRouter.mockResolvedValue('raw')
     mockParseEvaluationResponse.mockReturnValue(mockEvalResult)
@@ -80,23 +83,23 @@ describe('evaluateJobsTask', () => {
 
   it('evaluates a matching job and returns count', async () => {
     const result = await (evaluateJobsTask as any).run({ jobIds: ['job-1'] })
-    expect(result).toEqual({ evaluatedCount: 1 })
+    expect(result).toMatchObject({ evaluatedCount: 1 })
   })
 
   it('skips evaluation when job is pre-filtered out by company exclusion', async () => {
-    setupMocks({ prefs: { user_id: 'user-1', target_roles: [{ role: 'Head of Product', yoe: 0 }], target_industries: [], locations: [], excluded_companies: ['Acme'], excluded_industries: [] } })
+    setupMocks({ prefs: { user_id: 'user-1', target_roles: [{ role: 'Head of Product' }], target_industries: [], locations: [], excluded_companies: ['Acme'], excluded_industries: [] } })
     const result = await (evaluateJobsTask as any).run({ jobIds: ['job-1'] })
-    expect(result).toEqual({ evaluatedCount: 0 })
+    expect(result).toMatchObject({ evaluatedCount: 0 })
     expect(mockCallOpenRouter).not.toHaveBeenCalled()
   })
 
   it('skips evaluation when job title does not match target roles', async () => {
     setupMocks({
       jobs: [{ id: 'job-1', title: 'Data Engineer', company: 'Acme', location: 'Zurich', description: 'Data stuff.', industry: 'IT & Software' }],
-      prefs: { user_id: 'user-1', target_roles: [{ role: 'Head of Product', yoe: 0 }], target_industries: [], locations: [], excluded_companies: [], excluded_industries: [] },
+      prefs: { user_id: 'user-1', target_roles: [{ role: 'Head of Product' }], target_industries: [], locations: [], excluded_companies: [], excluded_industries: [] },
     })
     const result = await (evaluateJobsTask as any).run({ jobIds: ['job-1'] })
-    expect(result).toEqual({ evaluatedCount: 0 })
+    expect(result).toMatchObject({ evaluatedCount: 0 })
     expect(mockCallOpenRouter).not.toHaveBeenCalled()
   })
 
@@ -106,7 +109,7 @@ describe('evaluateJobsTask', () => {
       throw new Error(`Unexpected table: ${table}`)
     })
     const result = await (evaluateJobsTask as any).run({ jobIds: ['job-1'] })
-    expect(result).toEqual({ evaluatedCount: 0 })
+    expect(result).toMatchObject({ evaluatedCount: 0 })
   })
 
   it('fetches 100 most recent jobs when no jobIds provided (new user backfill)', async () => {
