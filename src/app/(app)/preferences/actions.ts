@@ -11,6 +11,8 @@ export async function savePreferences(values: {
   targetRoles: RoleSelection[]
   targetIndustries: string[]
   excludedIndustries: string[]
+  preferredLanguages: string[]
+  companySizes: string[]
   locations: string[]
   excludedCompanies: string[]
   yearsExperience: number
@@ -27,6 +29,8 @@ export async function savePreferences(values: {
       target_roles: values.targetRoles,
       target_industries: values.targetIndustries,
       excluded_industries: values.excludedIndustries,
+      preferred_languages: values.preferredLanguages,
+      company_sizes: values.companySizes,
       locations: values.locations,
       excluded_companies: values.excludedCompanies,
     }),
