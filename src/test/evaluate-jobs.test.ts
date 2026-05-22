@@ -22,6 +22,7 @@ vi.mock('@/trigger/lib/evaluate', () => ({
 
 vi.mock('@sentry/node', () => ({
   captureException: vi.fn(),
+  captureMessage: vi.fn(),
 }))
 
 const { evaluateJobsTask } = await import('@/trigger/evaluate-jobs')
@@ -43,18 +44,36 @@ const mockEvalResult = {
   },
 }
 
+// Returns a Supabase-style chainable query stub where every filter method
+// returns the chain itself, and awaiting it resolves `result`.
+function makeChainable(result: { data: any[]; error: null | { message: string } }) {
+  const chain: Record<string, any> = {}
+  chain.in  = vi.fn(() => chain)
+  chain.gte = vi.fn(() => chain)
+  chain.lt  = vi.fn(() => chain)
+  chain.then = (
+    resolve: (v: typeof result) => unknown,
+    reject?: (e: unknown) => unknown,
+  ) => Promise.resolve(result).then(resolve, reject)
+  return chain
+}
+
+let jobsChain: ReturnType<typeof makeChainable>
+
 function setupMocks({
   jobs = [{ id: 'job-1', title: 'Head of Product', company: 'Acme', location: 'Zurich', description: 'Strong operator.', industry: 'IT & Software' }],
-  prefs = { user_id: 'user-1', target_roles: [{ role: 'Head of Product', yoe: 0 }], target_industries: ['SaaS'], locations: ['Zurich'], excluded_companies: [] as string[], excluded_industries: [] as string[] },
+  prefs = { user_id: 'user-1', target_roles: [{ role: 'Head of Product' }], target_industries: ['SaaS'], locations: ['Zurich'], excluded_companies: [] as string[], excluded_industries: [] as string[] },
 } = {}) {
+  jobsChain = makeChainable({ data: jobs, error: null })
+
   mockFrom.mockImplementation((table: string) => {
     if (table === 'jobs') {
-      return { select: () => ({ eq: () => ({ in: async () => ({ data: jobs, error: null }), order: () => ({ limit: async () => ({ data: jobs, error: null }) }) }) }) }
+      return { select: () => ({ eq: () => jobsChain }) }
     }
     if (table === 'profiles') {
-      const profileResult = { data: [{ id: 'user-1', cv_text: 'PM background' }] }
-      const chainable = { in: async () => profileResult, then: (resolve: (v: typeof profileResult) => void) => resolve(profileResult) }
-      return { select: () => ({ eq: () => ({ not: () => chainable }) }) }
+      const profileResult = { data: [{ id: 'user-1', cv_text: 'PM background', years_experience: 0 }] }
+      const chain = makeChainable(profileResult)
+      return { select: () => ({ eq: () => chain }) }
     }
     if (table === 'preferences') {
       return { select: () => ({ in: async () => ({ data: [prefs] }) }) }
@@ -62,7 +81,7 @@ function setupMocks({
     if (table === 'job_evaluations') {
       return {
         insert: async () => ({ data: { id: 'eval-1' }, error: null }),
-        upsert: async () => ({ data: { id: 'eval-1' }, error: null })
+        upsert: async () => ({ data: { id: 'eval-1' }, error: null }),
       }
     }
     throw new Error(`Unexpected table: ${table}`)
@@ -72,6 +91,7 @@ function setupMocks({
 describe('evaluateJobsTask', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.stubEnv('OPENROUTER_API_KEY', 'test-key')
     mockBuildEvaluationPrompt.mockReturnValue('prompt')
     mockCallOpenRouter.mockResolvedValue('raw')
     mockParseEvaluationResponse.mockReturnValue(mockEvalResult)
@@ -80,38 +100,88 @@ describe('evaluateJobsTask', () => {
 
   it('evaluates a matching job and returns count', async () => {
     const result = await (evaluateJobsTask as any).run({ jobIds: ['job-1'] })
-    expect(result).toEqual({ evaluatedCount: 1 })
+    expect(result).toMatchObject({ evaluatedCount: 1 })
   })
 
   it('skips evaluation when job is pre-filtered out by company exclusion', async () => {
-    setupMocks({ prefs: { user_id: 'user-1', target_roles: [{ role: 'Head of Product', yoe: 0 }], target_industries: [], locations: [], excluded_companies: ['Acme'], excluded_industries: [] } })
+    setupMocks({ prefs: { user_id: 'user-1', target_roles: [{ role: 'Head of Product' }], target_industries: [], locations: [], excluded_companies: ['Acme'], excluded_industries: [] } })
     const result = await (evaluateJobsTask as any).run({ jobIds: ['job-1'] })
-    expect(result).toEqual({ evaluatedCount: 0 })
+    expect(result).toMatchObject({ evaluatedCount: 0 })
     expect(mockCallOpenRouter).not.toHaveBeenCalled()
   })
 
   it('skips evaluation when job title does not match target roles', async () => {
     setupMocks({
       jobs: [{ id: 'job-1', title: 'Data Engineer', company: 'Acme', location: 'Zurich', description: 'Data stuff.', industry: 'IT & Software' }],
-      prefs: { user_id: 'user-1', target_roles: [{ role: 'Head of Product', yoe: 0 }], target_industries: [], locations: [], excluded_companies: [], excluded_industries: [] },
+      prefs: { user_id: 'user-1', target_roles: [{ role: 'Head of Product' }], target_industries: [], locations: [], excluded_companies: [], excluded_industries: [] },
     })
     const result = await (evaluateJobsTask as any).run({ jobIds: ['job-1'] })
-    expect(result).toEqual({ evaluatedCount: 0 })
+    expect(result).toMatchObject({ evaluatedCount: 0 })
     expect(mockCallOpenRouter).not.toHaveBeenCalled()
   })
 
   it('returns 0 when no jobs exist', async () => {
     mockFrom.mockImplementation((table: string) => {
-      if (table === 'jobs') return { select: () => ({ eq: () => ({ in: async () => ({ data: [], error: null }) }) }) }
+      if (table === 'jobs') {
+        const empty = makeChainable({ data: [], error: null })
+        return { select: () => ({ eq: () => empty }) }
+      }
       throw new Error(`Unexpected table: ${table}`)
     })
     const result = await (evaluateJobsTask as any).run({ jobIds: ['job-1'] })
-    expect(result).toEqual({ evaluatedCount: 0 })
+    expect(result).toMatchObject({ evaluatedCount: 0 })
   })
 
   it('fetches 100 most recent jobs when no jobIds provided (new user backfill)', async () => {
     setupMocks()
     await (evaluateJobsTask as any).run({ userIds: ['user-1'] })
     expect(mockBuildEvaluationPrompt).toHaveBeenCalled()
+  })
+
+  // ── New tests for since / until / phase ──────────────────────────────────
+
+  it('uses since as the date_posted lower bound when provided', async () => {
+    setupMocks()
+    await (evaluateJobsTask as any).run({ userIds: ['user-1'], since: '2026-05-21' })
+    expect(jobsChain.gte).toHaveBeenCalledWith('date_posted', '2026-05-21')
+  })
+
+  it('adds lt filter for until when provided', async () => {
+    setupMocks()
+    await (evaluateJobsTask as any).run({ userIds: ['user-1'], since: '2026-05-15', until: '2026-05-21' })
+    expect(jobsChain.gte).toHaveBeenCalledWith('date_posted', '2026-05-15')
+    expect(jobsChain.lt).toHaveBeenCalledWith('date_posted', '2026-05-21')
+  })
+
+  it('does not call lt when until is not provided', async () => {
+    setupMocks()
+    await (evaluateJobsTask as any).run({ userIds: ['user-1'], since: '2026-05-21' })
+    expect(jobsChain.lt).not.toHaveBeenCalled()
+  })
+
+  it('captures a Sentry warning when phase is onboarding-2 and errors occurred', async () => {
+    const sentry = await import('@sentry/node')
+    mockCallOpenRouter.mockRejectedValue(new Error('rate limit'))
+    await (evaluateJobsTask as any).run({
+      userIds: ['user-1'],
+      since: '2026-05-15',
+      until: '2026-05-21',
+      phase: 'onboarding-2',
+    })
+    expect(sentry.captureMessage).toHaveBeenCalledWith(
+      'onboarding phase-2: evaluation errors',
+      expect.objectContaining({ level: 'warning' }),
+    )
+  })
+
+  it('does not capture Sentry warning for cron phase even with errors', async () => {
+    const sentry = await import('@sentry/node')
+    mockCallOpenRouter.mockRejectedValue(new Error('rate limit'))
+    await (evaluateJobsTask as any).run({
+      userIds: ['user-1'],
+      since: '2026-05-15',
+      phase: 'cron',
+    })
+    expect(sentry.captureMessage).not.toHaveBeenCalled()
   })
 })

@@ -13,6 +13,7 @@ export async function savePreferences(values: {
   excludedIndustries: string[]
   locations: string[]
   excludedCompanies: string[]
+  yearsExperience: number
 }) {
   if (!values.targetRoles?.length) throw new Error('At least one target role is required')
 
@@ -21,7 +22,7 @@ export async function savePreferences(values: {
   if (!user) throw new Error('Not authenticated')
 
   await Promise.all([
-    updateProfile(user.id, { cv_text: values.cvText }),
+    updateProfile(user.id, { cv_text: values.cvText, years_experience: values.yearsExperience }),
     updatePreferences(user.id, {
       target_roles: values.targetRoles,
       target_industries: values.targetIndustries,

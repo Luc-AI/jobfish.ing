@@ -5,7 +5,9 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Slider } from '@/components/ui/slider'
 import { Textarea } from '@/components/ui/textarea'
+import { Clock } from 'lucide-react'
 import { posthog } from '@/lib/posthog'
 import { RolePicker } from '@/components/features/role-picker'
 import type { RoleSelection } from '@/lib/supabase/types'
@@ -17,6 +19,7 @@ interface PreferencesValues {
   excludedIndustries: string[]
   locations: string[]
   excludedCompanies: string[]
+  yearsExperience: number
 }
 
 interface PreferencesFormProps {
@@ -32,9 +35,26 @@ function inputToArray(value: string): string[] {
   return value.split(',').map(s => s.trim()).filter(Boolean)
 }
 
+function YoeSlider({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+  const label = value === 10 ? '10+' : String(value)
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <span className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          <Clock className="h-3.5 w-3.5" />
+          YEARS OF EXPERIENCE
+        </span>
+        <span className="text-sm font-semibold tabular-nums">{label}</span>
+      </div>
+      <Slider value={[value]} onValueChange={([v]) => onChange(v)} min={0} max={10} step={1} />
+    </div>
+  )
+}
+
 export function PreferencesForm({ defaultValues, onSave }: PreferencesFormProps) {
   const [cvText, setCvText] = useState(defaultValues.cvText)
   const [targetRoles, setTargetRoles] = useState<RoleSelection[]>(defaultValues.targetRoles)
+  const [yearsExperience, setYearsExperience] = useState(defaultValues.yearsExperience)
   const [targetIndustries, setTargetIndustries] = useState(arrayToInput(defaultValues.targetIndustries))
   const [excludedIndustries, setExcludedIndustries] = useState(arrayToInput(defaultValues.excludedIndustries))
   const [locations, setLocations] = useState(arrayToInput(defaultValues.locations))
@@ -47,6 +67,7 @@ export function PreferencesForm({ defaultValues, onSave }: PreferencesFormProps)
     await onSave({
       cvText,
       targetRoles,
+      yearsExperience,
       targetIndustries: inputToArray(targetIndustries),
       excludedIndustries: inputToArray(excludedIndustries),
       locations: inputToArray(locations),
@@ -75,6 +96,8 @@ export function PreferencesForm({ defaultValues, onSave }: PreferencesFormProps)
       <div className="space-y-1.5">
         <RolePicker value={targetRoles} onChange={setTargetRoles} />
       </div>
+
+      <YoeSlider value={yearsExperience} onChange={setYearsExperience} />
 
       <div className="space-y-1.5">
         <Label htmlFor="target-industries">Preferred industries</Label>

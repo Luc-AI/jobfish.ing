@@ -9,14 +9,14 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Slider } from '@/components/ui/slider'
 import { Switch } from '@/components/ui/switch'
-import { Loader2 } from 'lucide-react'
+import { Clock, Loader2 } from 'lucide-react'
 import { posthog } from '@/lib/posthog'
 import { LocationPicker } from '@/components/features/location-picker'
 import { RolePicker } from '@/components/features/role-picker'
 import type { RoleSelection } from '@/lib/supabase/types'
 
 type WizardStep = 1 | 2 | 3 | 4 | 'loading'
-type RemotePreference = 'on-site' | 'hybrid' | 'remote-ok' | 'remote-solely'
+export type RemotePreference = 'on-site' | 'hybrid' | 'remote-ok' | 'remote-solely'
 
 const REMOTE_OPTIONS: { value: RemotePreference; label: string }[] = [
   { value: 'on-site', label: 'On-site' },
@@ -25,12 +25,44 @@ const REMOTE_OPTIONS: { value: RemotePreference; label: string }[] = [
   { value: 'remote-solely', label: 'Remote Solely' },
 ]
 
+interface OnboardingInitialValues {
+  firstName?: string
+  lastName?: string
+  cvText?: string
+  yearsExperience?: number
+  targetRoles?: RoleSelection[]
+  targetIndustries?: string
+  excludedIndustries?: string
+  locations?: string[]
+  excludedCompanies?: string
+  remotePreference?: RemotePreference
+}
+
+const CV_MIN_CHARS = 100
+
+function YoeSlider({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+  const label = value === 10 ? '10+' : String(value)
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <span className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          <Clock className="h-3.5 w-3.5" />
+          YEARS OF EXPERIENCE
+        </span>
+        <span className="text-sm font-semibold tabular-nums">{label}</span>
+      </div>
+      <Slider value={[value]} onValueChange={([v]) => onChange(v)} min={0} max={10} step={1} />
+    </div>
+  )
+}
+
 interface OnboardingWizardProps {
   userId: string
   initialStep?: 1 | 2 | 3 | 4
+  initialValues?: OnboardingInitialValues
 }
 
-export function OnboardingWizard({ userId, initialStep = 1 }: OnboardingWizardProps) {
+export function OnboardingWizard({ userId, initialStep = 1, initialValues }: OnboardingWizardProps) {
   const router = useRouter()
   const supabaseRef = useRef(createClient())
   const supabase = supabaseRef.current
@@ -39,19 +71,20 @@ export function OnboardingWizard({ userId, initialStep = 1 }: OnboardingWizardPr
   const [saveError, setSaveError] = useState<string | null>(null)
 
   // Step 1: Name
-  const [firstName, setFirstName] = useState('')
-  const [lastName, setLastName] = useState('')
+  const [firstName, setFirstName] = useState(initialValues?.firstName ?? '')
+  const [lastName, setLastName] = useState(initialValues?.lastName ?? '')
 
   // Step 2: CV
-  const [cvText, setCvText] = useState('')
+  const [cvText, setCvText] = useState(initialValues?.cvText ?? '')
 
   // Step 3: Preferences
-  const [targetRoles, setTargetRoles] = useState<RoleSelection[]>([])
-  const [targetIndustries, setTargetIndustries] = useState('')
-  const [excludedIndustries, setExcludedIndustries] = useState('')
-  const [locations, setLocations] = useState<string[]>([])
-  const [excludedCompanies, setExcludedCompanies] = useState('')
-  const [remotePreference, setRemotePreference] = useState<RemotePreference>('hybrid')
+  const [targetRoles, setTargetRoles] = useState<RoleSelection[]>(initialValues?.targetRoles ?? [])
+  const [yearsExperience, setYearsExperience] = useState(initialValues?.yearsExperience ?? 0)
+  const [targetIndustries, setTargetIndustries] = useState(initialValues?.targetIndustries ?? '')
+  const [excludedIndustries, setExcludedIndustries] = useState(initialValues?.excludedIndustries ?? '')
+  const [locations, setLocations] = useState<string[]>(initialValues?.locations ?? [])
+  const [excludedCompanies, setExcludedCompanies] = useState(initialValues?.excludedCompanies ?? '')
+  const [remotePreference, setRemotePreference] = useState<RemotePreference>(initialValues?.remotePreference ?? 'hybrid')
 
   // Step 4: Notifications
   const [threshold, setThreshold] = useState(7.0)
@@ -86,7 +119,7 @@ export function OnboardingWizard({ userId, initialStep = 1 }: OnboardingWizardPr
   async function saveStep3() {
     setSaving(true)
     setSaveError(null)
-    const { error } = await supabase
+    const { error: prefError } = await supabase
       .from('preferences')
       .upsert({
         user_id: userId,
@@ -97,8 +130,12 @@ export function OnboardingWizard({ userId, initialStep = 1 }: OnboardingWizardPr
         excluded_companies: parseCommaSeparated(excludedCompanies),
         remote_preference: remotePreference,
       }, { onConflict: 'user_id' })
+    if (prefError) { setSaving(false); setSaveError(prefError.message); return }
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .upsert({ id: userId, years_experience: yearsExperience }, { onConflict: 'id' })
     setSaving(false)
-    if (error) { setSaveError(error.message); return }
+    if (profileError) { setSaveError(profileError.message); return }
     setStep(4)
   }
 
@@ -201,11 +238,15 @@ export function OnboardingWizard({ userId, initialStep = 1 }: OnboardingWizardPr
               rows={12}
               className="resize-none font-mono text-sm"
             />
-            <p className="text-xs text-muted-foreground">{cvText.length} characters</p>
+            <p className="text-xs text-muted-foreground">
+              {cvText.trim().length < CV_MIN_CHARS
+                ? `${CV_MIN_CHARS - cvText.trim().length} more characters needed`
+                : `${cvText.trim().length} characters`}
+            </p>
             {saveError && <p className="text-sm text-destructive">{saveError}</p>}
             <div className="flex justify-between">
               <Button variant="outline" onClick={() => setStep(1)} disabled={saving}>Back</Button>
-              <Button onClick={saveStep2} disabled={saving}>
+              <Button onClick={saveStep2} disabled={saving || cvText.trim().length < CV_MIN_CHARS}>
                 {saving ? 'Saving…' : 'Next'}
               </Button>
             </div>
@@ -220,6 +261,7 @@ export function OnboardingWizard({ userId, initialStep = 1 }: OnboardingWizardPr
             <div className="space-y-1">
               <RolePicker value={targetRoles} onChange={setTargetRoles} />
             </div>
+            <YoeSlider value={yearsExperience} onChange={setYearsExperience} />
             <div className="space-y-1">
               <Label>Preferred industries</Label>
               <Input

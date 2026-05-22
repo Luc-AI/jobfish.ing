@@ -6,7 +6,8 @@ import type { RoleSelection } from '@/lib/supabase/types'
 
 const defaultValues = {
   cvText: 'My CV content here.',
-  targetRoles: [{ role: 'Head of Product', yoe: 0 }] as RoleSelection[],
+  targetRoles: [{ role: 'Head of Product' }] as RoleSelection[],
+  yearsExperience: 5,
   targetIndustries: ['Fintech'],
   excludedIndustries: [],
   locations: ['Zurich'],
@@ -29,11 +30,25 @@ describe('PreferencesForm', () => {
     expect(screen.getByText('1 SELECTED')).toBeInTheDocument()
   })
 
+  it('renders YoeSlider with initial value from defaultValues', () => {
+    render(<PreferencesForm defaultValues={defaultValues} onSave={vi.fn()} />)
+    expect(screen.getByText(/years of experience/i)).toBeInTheDocument()
+    expect(screen.getByText('5')).toBeInTheDocument()
+  })
+
   it('calls onSave when form is submitted', async () => {
     const user = userEvent.setup()
     const onSave = vi.fn()
     render(<PreferencesForm defaultValues={defaultValues} onSave={onSave} />)
     await user.click(screen.getByRole('button', { name: /save/i }))
     expect(onSave).toHaveBeenCalledOnce()
+  })
+
+  it('includes yearsExperience in onSave payload', async () => {
+    const user = userEvent.setup()
+    const onSave = vi.fn()
+    render(<PreferencesForm defaultValues={defaultValues} onSave={onSave} />)
+    await user.click(screen.getByRole('button', { name: /save/i }))
+    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ yearsExperience: 5 }))
   })
 })
