@@ -10,6 +10,8 @@ const defaultValues = {
   yearsExperience: 5,
   targetIndustries: ['Fintech'],
   excludedIndustries: [],
+  preferredLanguages: [],
+  companySizes: [],
   locations: ['Zurich'],
   excludedCompanies: [],
 }

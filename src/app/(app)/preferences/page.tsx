@@ -30,6 +30,8 @@ export default async function PreferencesPage() {
           yearsExperience: profile?.years_experience ?? 0,
           targetIndustries: preferences?.target_industries ?? [],
           excludedIndustries: preferences?.excluded_industries ?? [],
+          preferredLanguages: preferences?.preferred_languages ?? [],
+          companySizes: preferences?.company_sizes ?? [],
           locations: preferences?.locations ?? [],
           excludedCompanies: preferences?.excluded_companies ?? [],
         }}
