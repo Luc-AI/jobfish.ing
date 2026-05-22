@@ -29,8 +29,8 @@ describe('RolePicker', () => {
 
   it('shows "2 SELECTED" when two roles are pre-selected', () => {
     const value: RoleSelection[] = [
-      { role: 'Product Manager', yoe: 0 },
-      { role: 'Technical Product Manager', yoe: 0 },
+      { role: 'Product Manager' },
+      { role: 'Technical Product Manager' },
     ]
     render(<RolePicker value={value} onChange={onChange} />)
     expect(screen.getByText('2 SELECTED')).toBeInTheDocument()
@@ -58,13 +58,13 @@ describe('RolePicker', () => {
     await user.click(screen.getByRole('button', { name: 'Product' }))
     await user.click(screen.getByRole('button', { name: 'Product Manager' }))
     expect(onChange).toHaveBeenCalledWith([
-      { role: 'Product Manager', yoe: 0 },
+      { role: 'Product Manager' },
     ])
   })
 
   it('clicking a selected role chip removes it', async () => {
     const user = userEvent.setup()
-    const value: RoleSelection[] = [{ role: 'Product Manager', yoe: 0 }]
+    const value: RoleSelection[] = [{ role: 'Product Manager' }]
     render(<RolePicker value={value} onChange={onChange} />)
     await user.click(screen.getByRole('button', { name: 'Product' }))
     await user.click(screen.getByRole('button', { name: 'Product Manager' }))
@@ -79,36 +79,10 @@ describe('RolePicker', () => {
     expect(screen.getByText('AI & DATA & ANALYTICS')).toBeInTheDocument()
   })
 
-  it('shows YEARS OF EXPERIENCE section when roles are selected', () => {
-    const value: RoleSelection[] = [{ role: 'Product Manager', yoe: 0 }]
+  it('does not show YEARS OF EXPERIENCE section', () => {
+    const value: RoleSelection[] = [{ role: 'Product Manager' }]
     render(<RolePicker value={value} onChange={onChange} />)
-    expect(screen.getByText(/years of experience/i)).toBeInTheDocument()
-    expect(screen.getByText('Product Manager')).toBeInTheDocument()
-  })
-
-  it('does not show YEARS OF EXPERIENCE when no roles selected', () => {
-    render(<RolePicker value={[]} onChange={onChange} />)
     expect(screen.queryByText(/years of experience/i)).not.toBeInTheDocument()
-  })
-
-  it('+ button calls onChange with incremented yoe', async () => {
-    const user = userEvent.setup()
-    const value: RoleSelection[] = [{ role: 'Product Manager', yoe: 0 }]
-    render(<RolePicker value={value} onChange={onChange} />)
-    await user.click(screen.getByLabelText('increase'))
-    expect(onChange).toHaveBeenCalledWith([
-      { role: 'Product Manager', yoe: 1 },
-    ])
-  })
-
-  it('- button does not go below 0', async () => {
-    const user = userEvent.setup()
-    const value: RoleSelection[] = [{ role: 'Product Manager', yoe: 0 }]
-    render(<RolePicker value={value} onChange={onChange} />)
-    await user.click(screen.getByLabelText('decrease'))
-    expect(onChange).toHaveBeenCalledWith([
-      { role: 'Product Manager', yoe: 0 },
-    ])
   })
 
   it('normalizes legacy string[] values without crashing', () => {
@@ -123,8 +97,6 @@ describe('RolePicker', () => {
     const value = [{ role: 'Product Manager', minYoe: 2, maxYoe: 5 }] as unknown as RoleSelection[]
     render(<RolePicker value={value} onChange={onChange} />)
     expect(screen.getByText('1 SELECTED')).toBeInTheDocument()
-    // yoe should be coerced from minYoe=2
-    expect(screen.getByText('2')).toBeInTheDocument()
   })
 
   it('Product category includes Product Owner', async () => {

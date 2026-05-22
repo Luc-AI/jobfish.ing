@@ -17,17 +17,17 @@ const emptyPrefs: UserPrefsForFilter = {
 
 describe('filterJobsForUser — title keyword match', () => {
   it('passes job when title matches a target role (case-insensitive)', () => {
-    const prefs: UserPrefsForFilter = { ...emptyPrefs, target_roles: [{ role: 'UX Designer', yoe: 0 }] }
+    const prefs: UserPrefsForFilter = { ...emptyPrefs, target_roles: [{ role: 'UX Designer' }] }
     expect(filterJobsForUser([makeJob()], prefs)).toHaveLength(1)
   })
 
   it('blocks job when title does not match any target role', () => {
-    const prefs: UserPrefsForFilter = { ...emptyPrefs, target_roles: [{ role: 'Data Engineer', yoe: 0 }] }
+    const prefs: UserPrefsForFilter = { ...emptyPrefs, target_roles: [{ role: 'Data Engineer' }] }
     expect(filterJobsForUser([makeJob()], prefs)).toHaveLength(0)
   })
 
   it('matches case-insensitively', () => {
-    const prefs: UserPrefsForFilter = { ...emptyPrefs, target_roles: [{ role: 'ux designer', yoe: 0 }] }
+    const prefs: UserPrefsForFilter = { ...emptyPrefs, target_roles: [{ role: 'ux designer' }] }
     expect(filterJobsForUser([makeJob({ title: 'Senior UX Designer' })], prefs)).toHaveLength(1)
   })
 
@@ -38,7 +38,7 @@ describe('filterJobsForUser — title keyword match', () => {
   it('matches on any of multiple target roles (OR logic)', () => {
     const prefs: UserPrefsForFilter = {
       ...emptyPrefs,
-      target_roles: [{ role: 'Data Engineer', yoe: 0 }, { role: 'UX Designer', yoe: 0 }],
+      target_roles: [{ role: 'Data Engineer' }, { role: 'UX Designer' }],
     }
     expect(filterJobsForUser([makeJob()], prefs)).toHaveLength(1)
   })
@@ -86,7 +86,7 @@ describe('filterJobsForUser — industry exclusion', () => {
 describe('filterJobsForUser — combined conditions', () => {
   it('applies all three conditions together', () => {
     const prefs: UserPrefsForFilter = {
-      target_roles: [{ role: 'UX Designer', yoe: 0 }],
+      target_roles: [{ role: 'UX Designer' }],
       excluded_companies: ['Adecco'],
       excluded_industries: ['Healthcare & Pharma'],
     }

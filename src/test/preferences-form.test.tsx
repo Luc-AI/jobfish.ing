@@ -6,7 +6,7 @@ import type { RoleSelection } from '@/lib/supabase/types'
 
 const defaultValues = {
   cvText: 'My CV content here.',
-  targetRoles: [{ role: 'Head of Product', yoe: 0 }] as RoleSelection[],
+  targetRoles: [{ role: 'Head of Product' }] as RoleSelection[],
   targetIndustries: ['Fintech'],
   excludedIndustries: [],
   locations: ['Zurich'],

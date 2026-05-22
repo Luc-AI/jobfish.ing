@@ -28,12 +28,6 @@ export function buildEvaluationPrompt(input: EvaluationInput): string {
     ? targetRoles.map((r) => r.role).join(', ')
     : 'Not specified'
 
-  const yoeHint = targetRoles.length > 0
-    ? targetRoles
-        .map((r) => `${r.role}: ${r.yoe === 0 ? 'any' : `${r.yoe}+`} yrs`)
-        .join(', ')
-    : 'Not specified'
-
   return `You are a career advisor evaluating how well a job matches a candidate's profile.
 
 ## Candidate CV
@@ -41,7 +35,6 @@ ${cvText}
 
 ## Candidate Preferences
 - Target roles: ${roleNames}
-- Years of experience per role: ${yoeHint}
 - Preferred industries: ${targetIndustries.length > 0 ? targetIndustries.join(', ') : 'Not specified'}
 - Preferred locations: ${locations.length > 0 ? locations.join(', ') : 'Not specified'}
 - Excluded companies: ${excludedCompanies.length > 0 ? excludedCompanies.join(', ') : 'None'}
