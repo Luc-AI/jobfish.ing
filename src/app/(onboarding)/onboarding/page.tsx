@@ -12,7 +12,7 @@ export default async function OnboardingPage() {
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('onboarding_completed, first_name, last_name, cv_text, years_experience')
+    .select('onboarding_completed, first_name, cv_text, years_experience')
     .eq('id', user.id)
     .single()
 
@@ -24,18 +24,16 @@ export default async function OnboardingPage() {
     .eq('user_id', user.id)
     .maybeSingle()
 
-  function deriveInitialStep(): 1 | 2 | 3 | 4 {
+  function deriveInitialStep(): 1 | 2 | 3 | 4 | 5 {
     if (!profile?.first_name) return 1
-    if (!profile?.cv_text) return 2
-    if (!prefs?.target_roles?.length) return 3
-    return 4
+    if (!prefs?.target_roles?.length) return 2
+    return 5
   }
 
   const initialStep = deriveInitialStep()
 
   const initialValues = {
     firstName: profile?.first_name ?? '',
-    lastName: profile?.last_name ?? '',
     cvText: profile?.cv_text ?? '',
     yearsExperience: profile?.years_experience ?? 0,
     targetRoles: (prefs?.target_roles as RoleSelection[]) ?? [],
