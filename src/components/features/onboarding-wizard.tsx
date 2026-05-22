@@ -13,10 +13,11 @@ import { Clock, Loader2 } from 'lucide-react'
 import { posthog } from '@/lib/posthog'
 import { LocationPicker } from '@/components/features/location-picker'
 import { RolePicker } from '@/components/features/role-picker'
+import { IndustryPicker } from '@/components/features/industry-picker'
 import type { RoleSelection } from '@/lib/supabase/types'
 
-type WizardStep = 1 | 2 | 3 | 4 | 'loading'
-export type RemotePreference = 'on-site' | 'hybrid' | 'remote-ok' | 'remote-solely'
+type WizardStep = 1 | 2 | 3 | 4 | 5 | 'loading'
+type RemotePreference = 'on-site' | 'hybrid' | 'remote-ok' | 'remote-solely'
 
 const REMOTE_OPTIONS: { value: RemotePreference; label: string }[] = [
   { value: 'on-site', label: 'On-site' },
@@ -25,20 +26,8 @@ const REMOTE_OPTIONS: { value: RemotePreference; label: string }[] = [
   { value: 'remote-solely', label: 'Remote Solely' },
 ]
 
-interface OnboardingInitialValues {
-  firstName?: string
-  lastName?: string
-  cvText?: string
-  yearsExperience?: number
-  targetRoles?: RoleSelection[]
-  targetIndustries?: string
-  excludedIndustries?: string
-  locations?: string[]
-  excludedCompanies?: string
-  remotePreference?: RemotePreference
-}
-
-const CV_MIN_CHARS = 100
+const LANGUAGE_OPTIONS = ['German', 'English', 'French', 'Italian'] as const
+const COMPANY_SIZE_OPTIONS = ['Startup', 'Scale-up', 'Mid-market', 'Enterprise'] as const
 
 function YoeSlider({ value, onChange }: { value: number; onChange: (v: number) => void }) {
   const label = value === 10 ? '10+' : String(value)
@@ -56,13 +45,50 @@ function YoeSlider({ value, onChange }: { value: number; onChange: (v: number) =
   )
 }
 
-interface OnboardingWizardProps {
-  userId: string
-  initialStep?: 1 | 2 | 3 | 4
-  initialValues?: OnboardingInitialValues
+function MultiChips<T extends string>({
+  label,
+  options,
+  value,
+  onChange,
+}: {
+  label: string
+  options: readonly T[]
+  value: T[]
+  onChange: (v: T[]) => void
+}) {
+  function toggle(opt: T) {
+    if (value.includes(opt)) {
+      onChange(value.filter((v) => v !== opt))
+    } else {
+      onChange([...value, opt])
+    }
+  }
+  return (
+    <div className="space-y-2">
+      <Label>{label}</Label>
+      <div className="flex flex-wrap gap-2">
+        {options.map((opt) => (
+          <Button
+            key={opt}
+            type="button"
+            variant={value.includes(opt) ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => toggle(opt)}
+          >
+            {opt}
+          </Button>
+        ))}
+      </div>
+    </div>
+  )
 }
 
-export function OnboardingWizard({ userId, initialStep = 1, initialValues }: OnboardingWizardProps) {
+interface OnboardingWizardProps {
+  userId: string
+  initialStep?: 1 | 2 | 3 | 4 | 5
+}
+
+export function OnboardingWizard({ userId, initialStep = 1 }: OnboardingWizardProps) {
   const router = useRouter()
   const supabaseRef = useRef(createClient())
   const supabase = supabaseRef.current
@@ -71,22 +97,28 @@ export function OnboardingWizard({ userId, initialStep = 1, initialValues }: Onb
   const [saveError, setSaveError] = useState<string | null>(null)
 
   // Step 1: Name
-  const [firstName, setFirstName] = useState(initialValues?.firstName ?? '')
-  const [lastName, setLastName] = useState(initialValues?.lastName ?? '')
+  const [firstName, setFirstName] = useState('')
+  const [lastName, setLastName] = useState('')
 
-  // Step 2: CV
-  const [cvText, setCvText] = useState(initialValues?.cvText ?? '')
+  // Step 2: Preferences
+  const [targetRoles, setTargetRoles] = useState<RoleSelection[]>([])
+  const [yearsExperience, setYearsExperience] = useState(0)
+  const [locations, setLocations] = useState<string[]>([])
+  const [remotePreference, setRemotePreference] = useState<RemotePreference>('hybrid')
+  const [excludedCompanies, setExcludedCompanies] = useState('')
 
-  // Step 3: Preferences
-  const [targetRoles, setTargetRoles] = useState<RoleSelection[]>(initialValues?.targetRoles ?? [])
-  const [yearsExperience, setYearsExperience] = useState(initialValues?.yearsExperience ?? 0)
-  const [targetIndustries, setTargetIndustries] = useState(initialValues?.targetIndustries ?? '')
-  const [excludedIndustries, setExcludedIndustries] = useState(initialValues?.excludedIndustries ?? '')
-  const [locations, setLocations] = useState<string[]>(initialValues?.locations ?? [])
-  const [excludedCompanies, setExcludedCompanies] = useState(initialValues?.excludedCompanies ?? '')
-  const [remotePreference, setRemotePreference] = useState<RemotePreference>(initialValues?.remotePreference ?? 'hybrid')
+  // Step 3: Advanced
+  const [preferredIndustries, setPreferredIndustries] = useState<string[]>([])
+  const [excludedIndustries, setExcludedIndustries] = useState<string[]>([])
+  const [preferredLanguages, setPreferredLanguages] = useState<string[]>([])
+  const [companySizes, setCompanySizes] = useState<string[]>([])
 
-  // Step 4: Notifications
+  // Step 4: CV upload
+  const [cvUploading, setCvUploading] = useState(false)
+  const [cvUploadError, setCvUploadError] = useState<string | null>(null)
+  const [extractedText, setExtractedText] = useState<string | null>(null)
+
+  // Step 5: Notifications
   const [threshold, setThreshold] = useState(7.0)
   const [notificationsEnabled, setNotificationsEnabled] = useState(true)
 
@@ -108,24 +140,11 @@ export function OnboardingWizard({ userId, initialStep = 1, initialValues }: Onb
   async function saveStep2() {
     setSaving(true)
     setSaveError(null)
-    const { error } = await supabase
-      .from('profiles')
-      .upsert({ id: userId, cv_text: cvText }, { onConflict: 'id' })
-    setSaving(false)
-    if (error) { setSaveError(error.message); return }
-    setStep(3)
-  }
-
-  async function saveStep3() {
-    setSaving(true)
-    setSaveError(null)
     const { error: prefError } = await supabase
       .from('preferences')
       .upsert({
         user_id: userId,
         target_roles: targetRoles,
-        target_industries: parseCommaSeparated(targetIndustries),
-        excluded_industries: parseCommaSeparated(excludedIndustries),
         locations,
         excluded_companies: parseCommaSeparated(excludedCompanies),
         remote_preference: remotePreference,
@@ -136,10 +155,47 @@ export function OnboardingWizard({ userId, initialStep = 1, initialValues }: Onb
       .upsert({ id: userId, years_experience: yearsExperience }, { onConflict: 'id' })
     setSaving(false)
     if (profileError) { setSaveError(profileError.message); return }
+    setStep(3)
+  }
+
+  async function saveStep3() {
+    setSaving(true)
+    setSaveError(null)
+    const { error } = await supabase
+      .from('preferences')
+      .upsert({
+        user_id: userId,
+        target_industries: preferredIndustries,
+        excluded_industries: excludedIndustries,
+        preferred_languages: preferredLanguages,
+        company_sizes: companySizes,
+      }, { onConflict: 'user_id' })
+    setSaving(false)
+    if (error) { setSaveError(error.message); return }
     setStep(4)
   }
 
-  async function saveStep4() {
+  async function uploadCv(file: File) {
+    setCvUploading(true)
+    setCvUploadError(null)
+    const formData = new FormData()
+    formData.append('file', file)
+    try {
+      const res = await fetch('/api/cv/upload', { method: 'POST', body: formData })
+      const json = await res.json()
+      if (!res.ok) {
+        setCvUploadError(json.error ?? 'Upload failed. Please try again.')
+      } else {
+        setExtractedText(json.extractedText)
+      }
+    } catch {
+      setCvUploadError('Upload failed. Please check your connection and try again.')
+    } finally {
+      setCvUploading(false)
+    }
+  }
+
+  async function saveStep5() {
     setSaving(true)
     setSaveError(null)
     const { error } = await supabase
@@ -176,26 +232,26 @@ export function OnboardingWizard({ userId, initialStep = 1, initialValues }: Onb
     )
   }
 
-  const stepNumber = step as 1 | 2 | 3 | 4
+  const stepNumber = step as 1 | 2 | 3 | 4 | 5
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <div className="w-full max-w-lg space-y-6">
         <div>
-          <p className="text-sm text-muted-foreground">{stepNumber} of 4</p>
+          <p className="text-sm text-muted-foreground">{stepNumber} of 5</p>
           <h1 className="text-2xl font-bold tracking-tight mt-1">
             {step === 1 && "Let's get started"}
-            {step === 2 && 'Your CV'}
-            {step === 3 && 'Preferences'}
-            {step === 4 && 'Notifications'}
+            {step === 2 && 'Preferences'}
+            {step === 3 && 'Advanced'}
+            {step === 4 && 'Your CV'}
+            {step === 5 && 'Notifications'}
           </h1>
         </div>
 
+        {/* Step 1: Name */}
         {step === 1 && (
           <div className="space-y-4">
-            <p className="text-muted-foreground text-sm">
-              What should we call you?
-            </p>
+            <p className="text-muted-foreground text-sm">What should we call you?</p>
             <div className="space-y-1">
               <Label htmlFor="first-name">First name</Label>
               <Input
@@ -216,68 +272,21 @@ export function OnboardingWizard({ userId, initialStep = 1, initialValues }: Onb
             </div>
             {saveError && <p className="text-sm text-destructive">{saveError}</p>}
             <div className="flex justify-end">
-              <Button
-                onClick={saveStep1}
-                disabled={saving || !firstName.trim() || !lastName.trim()}
-              >
+              <Button onClick={saveStep1} disabled={saving || !firstName.trim() || !lastName.trim()}>
                 {saving ? 'Saving…' : 'Next'}
               </Button>
             </div>
           </div>
         )}
 
+        {/* Step 2: Preferences */}
         {step === 2 && (
           <div className="space-y-4">
             <p className="text-muted-foreground text-sm">
-              Paste your resume text below. The AI uses this to evaluate how well jobs match your background.
+              These help us find jobs that match your background and goals.
             </p>
-            <Textarea
-              placeholder="Paste your resume text here..."
-              value={cvText}
-              onChange={e => setCvText(e.target.value)}
-              rows={12}
-              className="resize-none font-mono text-sm"
-            />
-            <p className="text-xs text-muted-foreground">
-              {cvText.trim().length < CV_MIN_CHARS
-                ? `${CV_MIN_CHARS - cvText.trim().length} more characters needed`
-                : `${cvText.trim().length} characters`}
-            </p>
-            {saveError && <p className="text-sm text-destructive">{saveError}</p>}
-            <div className="flex justify-between">
-              <Button variant="outline" onClick={() => setStep(1)} disabled={saving}>Back</Button>
-              <Button onClick={saveStep2} disabled={saving || cvText.trim().length < CV_MIN_CHARS}>
-                {saving ? 'Saving…' : 'Next'}
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {step === 3 && (
-          <div className="space-y-4">
-            <p className="text-muted-foreground text-sm">
-              The AI uses these to evaluate job fit.
-            </p>
-            <div className="space-y-1">
-              <RolePicker value={targetRoles} onChange={setTargetRoles} />
-            </div>
+            <RolePicker value={targetRoles} onChange={setTargetRoles} />
             <YoeSlider value={yearsExperience} onChange={setYearsExperience} />
-            <div className="space-y-1">
-              <Label>Preferred industries</Label>
-              <Input
-                placeholder="Fintech, SaaS, Deep Tech"
-                value={targetIndustries}
-                onChange={e => setTargetIndustries(e.target.value)}
-              />
-            </div>
-            <div className="space-y-1">
-              <Label>Industries to avoid</Label>
-              <Input
-                placeholder="Pharma, Oil & Gas"
-                value={excludedIndustries}
-                onChange={e => setExcludedIndustries(e.target.value)}
-              />
-            </div>
             <div className="space-y-1">
               <Label>Locations</Label>
               <LocationPicker value={locations} onChange={setLocations} />
@@ -311,15 +320,117 @@ export function OnboardingWizard({ userId, initialStep = 1, initialValues }: Onb
             )}
             {saveError && <p className="text-sm text-destructive">{saveError}</p>}
             <div className="flex justify-between">
-              <Button variant="outline" onClick={() => setStep(2)} disabled={saving}>Back</Button>
-              <Button onClick={saveStep3} disabled={saving || targetRoles.length === 0}>
+              <Button variant="outline" onClick={() => setStep(1)} disabled={saving}>Back</Button>
+              <Button onClick={saveStep2} disabled={saving || targetRoles.length === 0}>
                 {saving ? 'Saving…' : 'Next'}
               </Button>
             </div>
           </div>
         )}
 
+        {/* Step 3: Advanced */}
+        {step === 3 && (
+          <div className="space-y-4">
+            <p className="text-muted-foreground text-sm">
+              Optional filters — leave blank to see all matches.
+            </p>
+            <div className="space-y-1">
+              <Label>Preferred industries</Label>
+              <IndustryPicker
+                value={preferredIndustries}
+                onChange={setPreferredIndustries}
+                label="Preferred industries"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label>Industries to exclude</Label>
+              <IndustryPicker
+                value={excludedIndustries}
+                onChange={setExcludedIndustries}
+                label="Industries to exclude"
+              />
+            </div>
+            <MultiChips
+              label="Preferred languages"
+              options={LANGUAGE_OPTIONS}
+              value={preferredLanguages}
+              onChange={setPreferredLanguages}
+            />
+            <MultiChips
+              label="Company size"
+              options={COMPANY_SIZE_OPTIONS}
+              value={companySizes}
+              onChange={setCompanySizes}
+            />
+            {saveError && <p className="text-sm text-destructive">{saveError}</p>}
+            <div className="flex justify-between">
+              <Button variant="outline" onClick={() => setStep(2)} disabled={saving}>Back</Button>
+              <Button onClick={saveStep3} disabled={saving}>
+                {saving ? 'Saving…' : 'Next'}
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Step 4: CV upload */}
         {step === 4 && (
+          <div className="space-y-4">
+            <p className="text-muted-foreground text-sm">
+              Upload your CV so the AI can evaluate how well each job matches your background.
+              Only PDF files are accepted.
+            </p>
+            <div className="space-y-2">
+              <Label htmlFor="cv-upload">CV (PDF)</Label>
+              <Input
+                id="cv-upload"
+                type="file"
+                accept=".pdf,application/pdf"
+                disabled={cvUploading}
+                onChange={e => {
+                  const file = e.target.files?.[0]
+                  if (file) uploadCv(file)
+                }}
+              />
+              {cvUploading && (
+                <p className="text-sm text-muted-foreground flex items-center gap-1.5">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  Extracting text…
+                </p>
+              )}
+              {cvUploadError && (
+                <p className="text-sm text-destructive">{cvUploadError}</p>
+              )}
+            </div>
+            {extractedText && (
+              <div className="space-y-1">
+                <Label>Extracted text</Label>
+                <Textarea
+                  readOnly
+                  value={extractedText}
+                  rows={10}
+                  className="resize-none font-mono text-xs text-muted-foreground"
+                />
+                <p className="text-xs text-muted-foreground">
+                  {extractedText.length} characters extracted
+                </p>
+              </div>
+            )}
+            <div className="flex justify-between">
+              <Button variant="outline" onClick={() => setStep(3)} disabled={cvUploading}>Back</Button>
+              <div className="flex gap-2">
+                <Button variant="ghost" onClick={() => setStep(5)} disabled={cvUploading}>
+                  Skip for now
+                </Button>
+                <Button onClick={() => setStep(5)} disabled={cvUploading || !extractedText}>
+                  Next
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Step 5: Notifications */}
+        {step === 5 && (
           <div className="space-y-6">
             <p className="text-muted-foreground text-sm">
               You'll only be notified when jobs score at or above your threshold.
@@ -352,8 +463,8 @@ export function OnboardingWizard({ userId, initialStep = 1, initialValues }: Onb
             </div>
             {saveError && <p className="text-sm text-destructive">{saveError}</p>}
             <div className="flex justify-between">
-              <Button variant="outline" onClick={() => setStep(3)} disabled={saving}>Back</Button>
-              <Button onClick={saveStep4} disabled={saving}>
+              <Button variant="outline" onClick={() => setStep(4)} disabled={saving}>Back</Button>
+              <Button onClick={saveStep5} disabled={saving}>
                 {saving ? 'Setting up…' : 'Start fishing'}
               </Button>
             </div>
