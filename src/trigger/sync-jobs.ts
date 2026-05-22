@@ -25,11 +25,15 @@ export const syncJobsTask = schedules.task({
     const delta = await fetchDelta(since)
 
     if (delta.removed.length > 0) {
-      const { error } = await supabase
-        .from('jobs')
-        .update({ is_active: false })
-        .in('external_id', delta.removed.map(r => r.id))
-      if (error) Sentry.captureException(error)
+      const addedUrls = new Set(delta.added.map(j => j.url))
+      const urlsToDeactivate = delta.removed.map(r => r.url).filter(u => !addedUrls.has(u))
+      if (urlsToDeactivate.length > 0) {
+        const { error } = await supabase
+          .from('jobs')
+          .update({ is_active: false })
+          .in('url', urlsToDeactivate)
+        if (error) Sentry.captureException(error)
+      }
     }
 
     let newJobIds: string[] = []
