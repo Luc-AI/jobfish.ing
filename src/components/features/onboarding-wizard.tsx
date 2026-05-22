@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Slider } from '@/components/ui/slider'
 import { Switch } from '@/components/ui/switch'
-import { Loader2 } from 'lucide-react'
+import { Clock, Loader2 } from 'lucide-react'
 import { posthog } from '@/lib/posthog'
 import { LocationPicker } from '@/components/features/location-picker'
 import { RolePicker } from '@/components/features/role-picker'
@@ -24,6 +24,22 @@ const REMOTE_OPTIONS: { value: RemotePreference; label: string }[] = [
   { value: 'remote-ok', label: 'Remote OK' },
   { value: 'remote-solely', label: 'Remote Solely' },
 ]
+
+function YoeSlider({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+  const label = value === 10 ? '10+' : String(value)
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <span className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          <Clock className="h-3.5 w-3.5" />
+          YEARS OF EXPERIENCE
+        </span>
+        <span className="text-sm font-semibold tabular-nums">{label}</span>
+      </div>
+      <Slider value={[value]} onValueChange={([v]) => onChange(v)} min={0} max={10} step={1} />
+    </div>
+  )
+}
 
 interface OnboardingWizardProps {
   userId: string
@@ -47,6 +63,7 @@ export function OnboardingWizard({ userId, initialStep = 1 }: OnboardingWizardPr
 
   // Step 3: Preferences
   const [targetRoles, setTargetRoles] = useState<RoleSelection[]>([])
+  const [yearsExperience, setYearsExperience] = useState(0)
   const [targetIndustries, setTargetIndustries] = useState('')
   const [excludedIndustries, setExcludedIndustries] = useState('')
   const [locations, setLocations] = useState<string[]>([])
@@ -86,7 +103,7 @@ export function OnboardingWizard({ userId, initialStep = 1 }: OnboardingWizardPr
   async function saveStep3() {
     setSaving(true)
     setSaveError(null)
-    const { error } = await supabase
+    const { error: prefError } = await supabase
       .from('preferences')
       .upsert({
         user_id: userId,
@@ -97,8 +114,12 @@ export function OnboardingWizard({ userId, initialStep = 1 }: OnboardingWizardPr
         excluded_companies: parseCommaSeparated(excludedCompanies),
         remote_preference: remotePreference,
       }, { onConflict: 'user_id' })
+    if (prefError) { setSaving(false); setSaveError(prefError.message); return }
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .upsert({ id: userId, years_experience: yearsExperience }, { onConflict: 'id' })
     setSaving(false)
-    if (error) { setSaveError(error.message); return }
+    if (profileError) { setSaveError(profileError.message); return }
     setStep(4)
   }
 
@@ -220,6 +241,7 @@ export function OnboardingWizard({ userId, initialStep = 1 }: OnboardingWizardPr
             <div className="space-y-1">
               <RolePicker value={targetRoles} onChange={setTargetRoles} />
             </div>
+            <YoeSlider value={yearsExperience} onChange={setYearsExperience} />
             <div className="space-y-1">
               <Label>Preferred industries</Label>
               <Input

@@ -78,6 +78,12 @@ describe('OnboardingWizard', () => {
     expect(screen.getByText('3 of 4')).toBeInTheDocument()
   })
 
+  it('renders YoeSlider with default value 0 on step 3', () => {
+    render(<OnboardingWizard {...defaultProps} initialStep={3} />)
+    expect(screen.getByText(/years of experience/i)).toBeInTheDocument()
+    expect(screen.getByText('0')).toBeInTheDocument()
+  })
+
   it('renders step 4 (notifications) with "4 of 4"', () => {
     render(<OnboardingWizard {...defaultProps} initialStep={4} />)
     expect(screen.getByText(/notifications/i)).toBeInTheDocument()
