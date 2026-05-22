@@ -10,13 +10,19 @@ import { Textarea } from '@/components/ui/textarea'
 import { Clock } from 'lucide-react'
 import { posthog } from '@/lib/posthog'
 import { RolePicker } from '@/components/features/role-picker'
+import { IndustryPicker } from '@/components/features/industry-picker'
 import type { RoleSelection } from '@/lib/supabase/types'
+
+const LANGUAGE_OPTIONS = ['German', 'English', 'French', 'Italian'] as const
+const COMPANY_SIZE_OPTIONS = ['Startup', 'Scale-up', 'Mid-market', 'Enterprise'] as const
 
 interface PreferencesValues {
   cvText: string
   targetRoles: RoleSelection[]
   targetIndustries: string[]
   excludedIndustries: string[]
+  preferredLanguages: string[]
+  companySizes: string[]
   locations: string[]
   excludedCompanies: string[]
   yearsExperience: number
@@ -51,12 +57,52 @@ function YoeSlider({ value, onChange }: { value: number; onChange: (v: number) =
   )
 }
 
+function MultiChips<T extends string>({
+  label,
+  options,
+  value,
+  onChange,
+}: {
+  label: string
+  options: readonly T[]
+  value: T[]
+  onChange: (v: T[]) => void
+}) {
+  function toggle(opt: T) {
+    if (value.includes(opt)) {
+      onChange(value.filter((v) => v !== opt))
+    } else {
+      onChange([...value, opt])
+    }
+  }
+  return (
+    <div className="space-y-2">
+      <Label>{label}</Label>
+      <div className="flex flex-wrap gap-2">
+        {options.map((opt) => (
+          <Button
+            key={opt}
+            type="button"
+            variant={value.includes(opt) ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => toggle(opt)}
+          >
+            {opt}
+          </Button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 export function PreferencesForm({ defaultValues, onSave }: PreferencesFormProps) {
   const [cvText, setCvText] = useState(defaultValues.cvText)
   const [targetRoles, setTargetRoles] = useState<RoleSelection[]>(defaultValues.targetRoles)
   const [yearsExperience, setYearsExperience] = useState(defaultValues.yearsExperience)
-  const [targetIndustries, setTargetIndustries] = useState(arrayToInput(defaultValues.targetIndustries))
-  const [excludedIndustries, setExcludedIndustries] = useState(arrayToInput(defaultValues.excludedIndustries))
+  const [targetIndustries, setTargetIndustries] = useState<string[]>(defaultValues.targetIndustries)
+  const [excludedIndustries, setExcludedIndustries] = useState<string[]>(defaultValues.excludedIndustries)
+  const [preferredLanguages, setPreferredLanguages] = useState<string[]>(defaultValues.preferredLanguages)
+  const [companySizes, setCompanySizes] = useState<string[]>(defaultValues.companySizes)
   const [locations, setLocations] = useState(arrayToInput(defaultValues.locations))
   const [excludedCompanies, setExcludedCompanies] = useState(arrayToInput(defaultValues.excludedCompanies))
   const [saving, setSaving] = useState(false)
@@ -68,8 +114,10 @@ export function PreferencesForm({ defaultValues, onSave }: PreferencesFormProps)
       cvText,
       targetRoles,
       yearsExperience,
-      targetIndustries: inputToArray(targetIndustries),
-      excludedIndustries: inputToArray(excludedIndustries),
+      targetIndustries,
+      excludedIndustries,
+      preferredLanguages,
+      companySizes,
       locations: inputToArray(locations),
       excludedCompanies: inputToArray(excludedCompanies),
     })
@@ -100,24 +148,36 @@ export function PreferencesForm({ defaultValues, onSave }: PreferencesFormProps)
       <YoeSlider value={yearsExperience} onChange={setYearsExperience} />
 
       <div className="space-y-1.5">
-        <Label htmlFor="target-industries">Preferred industries</Label>
-        <Input
-          id="target-industries"
-          placeholder="Fintech, SaaS, Deep Tech"
+        <Label>Preferred industries</Label>
+        <IndustryPicker
           value={targetIndustries}
-          onChange={e => setTargetIndustries(e.target.value)}
+          onChange={setTargetIndustries}
+          label="Preferred industries"
         />
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="excluded-industries">Industries to avoid</Label>
-        <Input
-          id="excluded-industries"
-          placeholder="Pharma, Oil & Gas"
+        <Label>Industries to avoid</Label>
+        <IndustryPicker
           value={excludedIndustries}
-          onChange={e => setExcludedIndustries(e.target.value)}
+          onChange={setExcludedIndustries}
+          label="Industries to avoid"
         />
       </div>
+
+      <MultiChips
+        label="Preferred languages"
+        options={LANGUAGE_OPTIONS}
+        value={preferredLanguages}
+        onChange={setPreferredLanguages}
+      />
+
+      <MultiChips
+        label="Company size"
+        options={COMPANY_SIZE_OPTIONS}
+        value={companySizes}
+        onChange={setCompanySizes}
+      />
 
       <div className="space-y-1.5">
         <Label htmlFor="locations">Locations</Label>

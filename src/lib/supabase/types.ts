@@ -65,6 +65,8 @@ export type Database = {
           excluded_companies: string[]
           updated_at: string
           remote_preference: 'on-site' | 'hybrid' | 'remote-ok' | 'remote-solely'
+          preferred_languages: string[]
+          company_sizes: string[]
         }
         Insert: {
           id?: string
@@ -76,6 +78,8 @@ export type Database = {
           excluded_companies?: string[]
           updated_at?: string
           remote_preference?: 'on-site' | 'hybrid' | 'remote-ok' | 'remote-solely'
+          preferred_languages?: string[]
+          company_sizes?: string[]
         }
         Update: {
           id?: string
@@ -87,6 +91,8 @@ export type Database = {
           excluded_companies?: string[]
           updated_at?: string
           remote_preference?: 'on-site' | 'hybrid' | 'remote-ok' | 'remote-solely'
+          preferred_languages?: string[]
+          company_sizes?: string[]
         }
         Relationships: []
       }
