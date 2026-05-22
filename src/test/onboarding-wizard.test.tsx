@@ -33,8 +33,7 @@ describe('OnboardingWizard', () => {
   it('renders step 1 (name) by default', () => {
     render(<OnboardingWizard {...defaultProps} />)
     expect(screen.getByText(/let's get started/i)).toBeInTheDocument()
-    expect(screen.getByLabelText(/first name/i)).toBeInTheDocument()
-    expect(screen.getByLabelText(/last name/i)).toBeInTheDocument()
+    expect(screen.getByLabelText(/your name/i)).toBeInTheDocument()
   })
 
   it('shows step counter as "1 of 5"', () => {
@@ -47,19 +46,17 @@ describe('OnboardingWizard', () => {
     expect(screen.getByRole('button', { name: /next/i })).toBeDisabled()
   })
 
-  it('Next button is enabled when both name fields are filled', async () => {
+  it('Next button is enabled when name field is filled', async () => {
     const user = userEvent.setup()
     render(<OnboardingWizard {...defaultProps} />)
-    await user.type(screen.getByLabelText(/first name/i), 'Ada')
-    await user.type(screen.getByLabelText(/last name/i), 'Lovelace')
+    await user.type(screen.getByLabelText(/your name/i), 'Ada Lovelace')
     expect(screen.getByRole('button', { name: /next/i })).toBeEnabled()
   })
 
   it('advances to step 2 (Preferences) after completing step 1', async () => {
     const user = userEvent.setup()
     render(<OnboardingWizard {...defaultProps} />)
-    await user.type(screen.getByLabelText(/first name/i), 'Ada')
-    await user.type(screen.getByLabelText(/last name/i), 'Lovelace')
+    await user.type(screen.getByLabelText(/your name/i), 'Ada Lovelace')
     await user.click(screen.getByRole('button', { name: /next/i }))
     expect(await screen.findByText('2 of 5')).toBeInTheDocument()
     expect(screen.getByText(/preferences/i)).toBeInTheDocument()
@@ -68,8 +65,7 @@ describe('OnboardingWizard', () => {
   it('can go back from step 2 to step 1', async () => {
     const user = userEvent.setup()
     render(<OnboardingWizard {...defaultProps} />)
-    await user.type(screen.getByLabelText(/first name/i), 'Ada')
-    await user.type(screen.getByLabelText(/last name/i), 'Lovelace')
+    await user.type(screen.getByLabelText(/your name/i), 'Ada Lovelace')
     await user.click(screen.getByRole('button', { name: /next/i }))
     await user.click(screen.getByRole('button', { name: /back/i }))
     expect(screen.getByText('1 of 5')).toBeInTheDocument()

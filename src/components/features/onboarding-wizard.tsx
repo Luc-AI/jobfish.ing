@@ -85,7 +85,6 @@ function MultiChips<T extends string>({
 
 export interface OnboardingWizardInitialValues {
   firstName?: string
-  lastName?: string
   cvText?: string
   yearsExperience?: number
   targetRoles?: RoleSelection[]
@@ -112,7 +111,6 @@ export function OnboardingWizard({ userId, initialStep = 1, initialValues = {} }
 
   // Step 1: Name
   const [firstName, setFirstName] = useState(initialValues.firstName ?? '')
-  const [lastName, setLastName] = useState(initialValues.lastName ?? '')
 
   // Step 2: Preferences
   const [targetRoles, setTargetRoles] = useState<RoleSelection[]>(initialValues.targetRoles ?? [])
@@ -149,7 +147,7 @@ export function OnboardingWizard({ userId, initialStep = 1, initialValues = {} }
     setSaveError(null)
     const { error } = await supabase
       .from('profiles')
-      .upsert({ id: userId, first_name: firstName, last_name: lastName }, { onConflict: 'id' })
+      .upsert({ id: userId, first_name: firstName }, { onConflict: 'id' })
     setSaving(false)
     if (error) { setSaveError(error.message); return }
     setStep(2)
@@ -271,26 +269,17 @@ export function OnboardingWizard({ userId, initialStep = 1, initialValues = {} }
           <div className="space-y-4">
             <p className="text-muted-foreground text-sm">What should we call you?</p>
             <div className="space-y-1">
-              <Label htmlFor="first-name">First name</Label>
+              <Label htmlFor="your-name">Your name</Label>
               <Input
-                id="first-name"
-                placeholder="Ada"
+                id="your-name"
+                placeholder="Ada Lovelace"
                 value={firstName}
                 onChange={e => setFirstName(e.target.value)}
               />
             </div>
-            <div className="space-y-1">
-              <Label htmlFor="last-name">Last name</Label>
-              <Input
-                id="last-name"
-                placeholder="Lovelace"
-                value={lastName}
-                onChange={e => setLastName(e.target.value)}
-              />
-            </div>
             {saveError && <p className="text-sm text-destructive">{saveError}</p>}
             <div className="flex justify-end">
-              <Button onClick={saveStep1} disabled={saving || !firstName.trim() || !lastName.trim()}>
+              <Button onClick={saveStep1} disabled={saving || !firstName.trim()}>
                 {saving ? 'Saving…' : 'Next'}
               </Button>
             </div>
