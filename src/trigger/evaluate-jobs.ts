@@ -86,12 +86,15 @@ export const evaluateJobsTask = task({
           const prompt = buildEvaluationPrompt({
             jobTitle: job.title,
             jobCompany: job.company,
+            jobLocation: job.location ?? null,
+            jobIndustry: job.industry ?? null,
             jobDescription: job.description ?? '',
             cvText: user.cv_text ?? '',
             targetRoles: (prefs?.target_roles ?? []) as RoleSelection[],
             targetIndustries: (prefs?.target_industries ?? []) as string[],
             locations: prefs?.locations ?? [],
             excludedCompanies: prefs?.excluded_companies ?? [],
+            excludedIndustries: (prefs?.excluded_industries ?? []) as string[],
             yearsExperience: user.years_experience ?? 0,
           })
 

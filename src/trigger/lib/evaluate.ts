@@ -3,12 +3,15 @@ import { scoreResponseSchema, type ScoreResponse } from './score-schema'
 interface EvaluationInput {
   jobTitle: string
   jobCompany: string
+  jobLocation: string | null
+  jobIndustry: string | null
   jobDescription: string
   cvText: string
   targetRoles: { role: string }[]
   targetIndustries: string[]
   locations: string[]
   excludedCompanies: string[]
+  excludedIndustries: string[]
   yearsExperience: number
 }
 
@@ -16,12 +19,15 @@ export function buildEvaluationPrompt(input: EvaluationInput): string {
   const {
     jobTitle,
     jobCompany,
+    jobLocation,
+    jobIndustry,
     jobDescription,
     cvText,
     targetRoles,
     targetIndustries,
     locations,
     excludedCompanies,
+    excludedIndustries,
     yearsExperience,
   } = input
 
@@ -45,10 +51,13 @@ ${cvText}
 - Preferred industries: ${targetIndustries.length > 0 ? targetIndustries.join(', ') : 'Not specified'}
 - Preferred locations: ${locations.length > 0 ? locations.join(', ') : 'Not specified'}
 - Excluded companies: ${excludedCompanies.length > 0 ? excludedCompanies.join(', ') : 'None'}
+- Excluded industries: ${excludedIndustries.length > 0 ? excludedIndustries.join(', ') : 'None'}
 
 ## Job Posting
 Title: ${jobTitle}
 Company: ${jobCompany}
+Location: ${jobLocation ?? 'Not specified'}
+Industry: ${jobIndustry ?? 'Not specified'}
 Description:
 ${jobDescription}
 
