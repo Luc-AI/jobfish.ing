@@ -34,7 +34,7 @@ describe('POST /api/onboarding/complete', () => {
     mockTrigger
       .mockResolvedValueOnce({ id: 'run-1' })  // phase 1 trigger
       .mockResolvedValueOnce({ id: 'run-2' })  // phase 2 trigger
-    mockPoll.mockResolvedValueOnce({ output: { evaluatedCount: 5 } })
+    mockPoll.mockResolvedValueOnce({ isSuccess: true, output: { evaluatedCount: 5 } })
 
     const res = await POST()
 
@@ -52,7 +52,7 @@ describe('POST /api/onboarding/complete', () => {
     )
     // phase 2 trigger fires but its poll is never called
     expect(mockPoll).toHaveBeenCalledTimes(1)
-    expect(mockPoll).toHaveBeenCalledWith('run-1', { pollIntervalMs: 1000 })
+    expect(mockPoll).toHaveBeenCalledWith({ id: 'run-1' }, { pollIntervalMs: 1000 })
   })
 
   it('returns 200 and polls phase-2 as fallback when phase-1 finds no jobs', async () => {
@@ -61,21 +61,23 @@ describe('POST /api/onboarding/complete', () => {
       .mockResolvedValueOnce({ id: 'run-1' })
       .mockResolvedValueOnce({ id: 'run-2' })
     mockPoll
-      .mockResolvedValueOnce({ output: { evaluatedCount: 0 } }) // phase 1 empty
-      .mockResolvedValueOnce({ output: { evaluatedCount: 3 } }) // phase 2 fills in
+      .mockResolvedValueOnce({ isSuccess: true, output: { evaluatedCount: 0 } }) // phase 1 empty
+      .mockResolvedValueOnce({ isSuccess: true, output: { evaluatedCount: 3 } }) // phase 2 fills in
 
     const res = await POST()
 
     expect(res.status).toBe(200)
     expect(mockTrigger).toHaveBeenCalledTimes(2)
     expect(mockPoll).toHaveBeenCalledTimes(2)
-    expect(mockPoll).toHaveBeenNthCalledWith(1, 'run-1', { pollIntervalMs: 1000 })
-    expect(mockPoll).toHaveBeenNthCalledWith(2, 'run-2', { pollIntervalMs: 1000 })
+    expect(mockPoll).toHaveBeenNthCalledWith(1, { id: 'run-1' }, { pollIntervalMs: 1000 })
+    expect(mockPoll).toHaveBeenNthCalledWith(2, { id: 'run-2' }, { pollIntervalMs: 1000 })
   })
 
   it('returns 500 when runs.poll throws', async () => {
     mockGetUser.mockResolvedValueOnce({ data: { user: { id: 'user-123' } } })
-    mockTrigger.mockResolvedValueOnce({ id: 'run-1' })
+    mockTrigger
+      .mockResolvedValueOnce({ id: 'run-1' })
+      .mockResolvedValueOnce({ id: 'run-2' })
     mockPoll.mockRejectedValueOnce(new Error('trigger timeout'))
 
     const res = await POST()

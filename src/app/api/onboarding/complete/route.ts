@@ -25,12 +25,9 @@ export async function POST() {
       since: oneDayAgo,
       phase: 'onboarding-1',
     })
-    const run1 = await runs.poll(handle1.id, { pollIntervalMs: 1000 })
-    const phase1Empty =
-      (run1.output as { evaluatedCount: number } | undefined)?.evaluatedCount === 0
 
-    // Phase 2: jobs from 2–7 days ago — fire and forget.
-    // Runs in the background; the hourly cron also covers this window.
+    // Phase 2: jobs from 2–7 days ago — trigger immediately so it's ready to await
+    // if we need the fallback.
     const handle2 = await tasks.trigger<typeof evaluateJobsTask>('evaluate-jobs', {
       userIds: [user.id],
       since: sevenDaysAgo,
@@ -38,10 +35,15 @@ export async function POST() {
       phase: 'onboarding-2',
     })
 
-    // Fallback: if the 24h window was empty (e.g. scraper hasn't run yet),
-    // wait for phase 2 so the user still lands on a populated dashboard.
+    const run1 = await runs.poll(handle1, { pollIntervalMs: 1000 })
+
+    // If phase-1 crashed/failed or found nothing, wait for phase-2 as fallback.
+    const phase1Empty =
+      !run1.isSuccess ||
+      run1.output?.evaluatedCount === 0
+
     if (phase1Empty) {
-      await runs.poll(handle2.id, { pollIntervalMs: 1000 })
+      await runs.poll(handle2, { pollIntervalMs: 1000 })
     }
 
     return NextResponse.json({ ok: true })
