@@ -73,6 +73,14 @@ describe('buildEvaluationPrompt', () => {
     expect(prompt).toContain('Product Manager')
   })
 
+  it('includes "Years of total experience" line in prompt', () => {
+    expect(buildEvaluationPrompt(baseInput)).toContain('Years of total experience')
+  })
+
+  it('does not include "per role" experience breakdown', () => {
+    expect(buildEvaluationPrompt(baseInput)).not.toContain('per role')
+  })
+
   it('formats yearsExperience=0 as "not specified"', () => {
     expect(buildEvaluationPrompt({ ...baseInput, yearsExperience: 0 })).toContain('not specified')
   })
