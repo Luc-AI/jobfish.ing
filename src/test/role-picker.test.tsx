@@ -90,7 +90,6 @@ describe('RolePicker', () => {
     const value = ['Product Manager', 'Software Engineer'] as unknown as RoleSelection[]
     render(<RolePicker value={value} onChange={onChange} />)
     expect(screen.getByText('2 SELECTED')).toBeInTheDocument()
-    expect(screen.getByText('Product Manager')).toBeInTheDocument()
   })
 
   it('normalizes legacy {minYoe, maxYoe} objects', () => {

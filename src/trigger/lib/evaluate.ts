@@ -29,7 +29,7 @@ export function buildEvaluationPrompt(input: EvaluationInput): string {
     ? targetRoles.map((r) => r.role).join(', ')
     : 'Not specified'
 
-  const yoeLabel =
+  const experienceLabel =
     yearsExperience === 0 ? 'not specified'
     : yearsExperience === 10 ? '10+ years'
     : `${yearsExperience}+ years`
@@ -41,7 +41,7 @@ ${cvText}
 
 ## Candidate Preferences
 - Target roles: ${roleNames}
-- Years of total experience: ${yoeLabel}
+- Years of total experience: ${experienceLabel}
 - Preferred industries: ${targetIndustries.length > 0 ? targetIndustries.join(', ') : 'Not specified'}
 - Preferred locations: ${locations.length > 0 ? locations.join(', ') : 'Not specified'}
 - Excluded companies: ${excludedCompanies.length > 0 ? excludedCompanies.join(', ') : 'None'}
