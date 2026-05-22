@@ -18,13 +18,12 @@ vi.mock('pdf-parse', () => ({
 import pdfParse from 'pdf-parse'
 const mockPdfParse = vi.mocked(pdfParse)
 
-function makeRequest(file: File | null, contentType = 'multipart/form-data') {
+function makeRequest(file: File | null) {
   const formData = new FormData()
   if (file) formData.append('file', file)
-  return new Request('http://localhost/api/cv/upload', {
-    method: 'POST',
-    body: formData,
-  }) as unknown as import('next/server').NextRequest
+  return {
+    formData: vi.fn().mockResolvedValue(formData),
+  } as unknown as import('next/server').NextRequest
 }
 
 function makeFile(name: string, type: string, sizeBytes: number) {

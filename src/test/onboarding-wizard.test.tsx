@@ -130,7 +130,7 @@ describe('OnboardingWizard', () => {
   it('renders step 4 (CV upload) with "4 of 5"', () => {
     render(<OnboardingWizard {...defaultProps} initialStep={4} />)
     expect(screen.getByText('4 of 5')).toBeInTheDocument()
-    expect(screen.getByText(/your cv/i)).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /your cv/i })).toBeInTheDocument()
   })
 
   it('step 4 has a PDF file input', () => {
