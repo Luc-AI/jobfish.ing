@@ -17,13 +17,18 @@ vi.mock('next/navigation', () => ({
   useRouter: vi.fn(() => ({ push: vi.fn() })),
 }))
 
-// Silence fetch in these tests (LocationPicker and complete route not under test here)
-vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({ suggestions: [] }) }))
+// Stub fetch for LocationPicker autocomplete and CV upload
+vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+  ok: true,
+  json: async () => ({ suggestions: [], extractedText: 'mock cv text' }),
+}))
 
 describe('OnboardingWizard', () => {
   beforeEach(() => vi.clearAllMocks())
 
   const defaultProps = { userId: 'test-user-id' }
+
+  // --- Step 1: Name ---
 
   it('renders step 1 (name) by default', () => {
     render(<OnboardingWizard {...defaultProps} />)
@@ -32,9 +37,9 @@ describe('OnboardingWizard', () => {
     expect(screen.getByLabelText(/last name/i)).toBeInTheDocument()
   })
 
-  it('shows step counter as "1 of 4"', () => {
+  it('shows step counter as "1 of 5"', () => {
     render(<OnboardingWizard {...defaultProps} />)
-    expect(screen.getByText('1 of 4')).toBeInTheDocument()
+    expect(screen.getByText('1 of 5')).toBeInTheDocument()
   })
 
   it('Next button is disabled when name fields are empty', () => {
@@ -50,14 +55,14 @@ describe('OnboardingWizard', () => {
     expect(screen.getByRole('button', { name: /next/i })).toBeEnabled()
   })
 
-  it('advances to step 2 (CV) after completing step 1', async () => {
+  it('advances to step 2 (Preferences) after completing step 1', async () => {
     const user = userEvent.setup()
     render(<OnboardingWizard {...defaultProps} />)
     await user.type(screen.getByLabelText(/first name/i), 'Ada')
     await user.type(screen.getByLabelText(/last name/i), 'Lovelace')
     await user.click(screen.getByRole('button', { name: /next/i }))
-    expect(await screen.findByText(/your cv/i)).toBeInTheDocument()
-    expect(screen.getByText('2 of 4')).toBeInTheDocument()
+    expect(await screen.findByText('2 of 5')).toBeInTheDocument()
+    expect(screen.getByText(/preferences/i)).toBeInTheDocument()
   })
 
   it('can go back from step 2 to step 1', async () => {
@@ -67,109 +72,111 @@ describe('OnboardingWizard', () => {
     await user.type(screen.getByLabelText(/last name/i), 'Lovelace')
     await user.click(screen.getByRole('button', { name: /next/i }))
     await user.click(screen.getByRole('button', { name: /back/i }))
-    expect(screen.getByText('1 of 4')).toBeInTheDocument()
+    expect(screen.getByText('1 of 5')).toBeInTheDocument()
   })
 
-  it('renders step 3 (preferences) with "3 of 4"', () => {
-    render(<OnboardingWizard {...defaultProps} initialStep={3} />)
-    expect(screen.getByText(/preferences/i)).toBeInTheDocument()
-    expect(screen.getByText('3 of 4')).toBeInTheDocument()
-  })
+  // --- Step 2: Preferences ---
 
-  it('renders YoeSlider with default value 0 on step 3', () => {
-    render(<OnboardingWizard {...defaultProps} initialStep={3} />)
+  it('renders step 2 (Preferences) with YoE slider and work arrangement', () => {
+    render(<OnboardingWizard {...defaultProps} initialStep={2} />)
+    expect(screen.getByText('2 of 5')).toBeInTheDocument()
     expect(screen.getByText(/years of experience/i)).toBeInTheDocument()
-    expect(screen.getByText('0')).toBeInTheDocument()
+    expect(screen.getByText(/work arrangement/i)).toBeInTheDocument()
   })
 
-  it('renders step 4 (notifications) with "4 of 4"', () => {
+  it('Next button on step 2 is disabled when no role is selected', () => {
+    render(<OnboardingWizard {...defaultProps} initialStep={2} />)
+    expect(screen.getByRole('button', { name: /next/i })).toBeDisabled()
+  })
+
+  // --- Step 3: Advanced ---
+
+  it('renders step 3 (Advanced) with "3 of 5"', () => {
+    render(<OnboardingWizard {...defaultProps} initialStep={3} />)
+    expect(screen.getByText('3 of 5')).toBeInTheDocument()
+    expect(screen.getByText(/advanced/i)).toBeInTheDocument()
+  })
+
+  it('step 3 shows preferred language chips', () => {
+    render(<OnboardingWizard {...defaultProps} initialStep={3} />)
+    expect(screen.getByRole('button', { name: 'German' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'English' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'French' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Italian' })).toBeInTheDocument()
+  })
+
+  it('step 3 shows company size chips', () => {
+    render(<OnboardingWizard {...defaultProps} initialStep={3} />)
+    expect(screen.getByRole('button', { name: 'Startup' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Scale-up' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Mid-market' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Enterprise' })).toBeInTheDocument()
+  })
+
+  it('step 3 Next button is always enabled (step is optional)', () => {
+    render(<OnboardingWizard {...defaultProps} initialStep={3} />)
+    expect(screen.getByRole('button', { name: /next/i })).toBeEnabled()
+  })
+
+  it('can go back from step 3 to step 2', async () => {
+    const user = userEvent.setup()
+    render(<OnboardingWizard {...defaultProps} initialStep={3} />)
+    await user.click(screen.getByRole('button', { name: /back/i }))
+    expect(screen.getByText('2 of 5')).toBeInTheDocument()
+  })
+
+  // --- Step 4: CV upload ---
+
+  it('renders step 4 (CV upload) with "4 of 5"', () => {
     render(<OnboardingWizard {...defaultProps} initialStep={4} />)
+    expect(screen.getByText('4 of 5')).toBeInTheDocument()
+    expect(screen.getByText(/your cv/i)).toBeInTheDocument()
+  })
+
+  it('step 4 has a PDF file input', () => {
+    render(<OnboardingWizard {...defaultProps} initialStep={4} />)
+    const fileInput = screen.getByLabelText(/cv \(pdf\)/i)
+    expect(fileInput).toHaveAttribute('type', 'file')
+    expect(fileInput).toHaveAttribute('accept', expect.stringContaining('pdf'))
+  })
+
+  it('step 4 Skip button advances to step 5 without uploading', async () => {
+    const user = userEvent.setup()
+    render(<OnboardingWizard {...defaultProps} initialStep={4} />)
+    await user.click(screen.getByRole('button', { name: /skip for now/i }))
+    expect(screen.getByText('5 of 5')).toBeInTheDocument()
+  })
+
+  it('step 4 Next button is disabled before a file is uploaded', () => {
+    render(<OnboardingWizard {...defaultProps} initialStep={4} />)
+    expect(screen.getByRole('button', { name: /^next$/i })).toBeDisabled()
+  })
+
+  it('can go back from step 4 to step 3', async () => {
+    const user = userEvent.setup()
+    render(<OnboardingWizard {...defaultProps} initialStep={4} />)
+    await user.click(screen.getByRole('button', { name: /back/i }))
+    expect(screen.getByText('3 of 5')).toBeInTheDocument()
+  })
+
+  // --- Step 5: Notifications ---
+
+  it('renders step 5 (Notifications) with "5 of 5"', () => {
+    render(<OnboardingWizard {...defaultProps} initialStep={5} />)
+    expect(screen.getByText('5 of 5')).toBeInTheDocument()
     expect(screen.getByText(/notifications/i)).toBeInTheDocument()
-    expect(screen.getByText('4 of 4')).toBeInTheDocument()
   })
 
-  describe('resume logic', () => {
-    it('renders step 2 when initialStep=2 with pre-filled cvText', () => {
-      render(
-        <OnboardingWizard
-          {...defaultProps}
-          initialStep={2}
-          initialValues={{ firstName: 'Ada', lastName: 'Lovelace', cvText: 'x'.repeat(100) }}
-        />
-      )
-      expect(screen.getByText(/your cv/i)).toBeInTheDocument()
-      expect(screen.getByDisplayValue('x'.repeat(100))).toBeInTheDocument()
-    })
-
-    it('renders step 3 when initialStep=3', () => {
-      render(
-        <OnboardingWizard
-          {...defaultProps}
-          initialStep={3}
-          initialValues={{ firstName: 'Ada', lastName: 'Lovelace', cvText: 'x'.repeat(100) }}
-        />
-      )
-      expect(screen.getByText(/preferences/i)).toBeInTheDocument()
-      expect(screen.getByText('3 of 4')).toBeInTheDocument()
-    })
-
-    it('pre-fills firstName and lastName from initialValues', () => {
-      render(
-        <OnboardingWizard
-          {...defaultProps}
-          initialStep={1}
-          initialValues={{ firstName: 'Ada', lastName: 'Lovelace' }}
-        />
-      )
-      expect(screen.getByDisplayValue('Ada')).toBeInTheDocument()
-      expect(screen.getByDisplayValue('Lovelace')).toBeInTheDocument()
-    })
-
-    it('pre-fills targetIndustries when provided', () => {
-      render(
-        <OnboardingWizard
-          {...defaultProps}
-          initialStep={3}
-          initialValues={{ targetIndustries: 'Fintech, SaaS' }}
-        />
-      )
-      expect(screen.getByDisplayValue('Fintech, SaaS')).toBeInTheDocument()
-    })
+  it('step 5 shows score threshold slider with default 7.0', () => {
+    render(<OnboardingWizard {...defaultProps} initialStep={5} />)
+    expect(screen.getByText(/score threshold/i)).toBeInTheDocument()
+    expect(screen.getByText('7.0')).toBeInTheDocument()
   })
 
-  describe('CV validation', () => {
-    it('disables Next button when CV is empty', () => {
-      render(<OnboardingWizard userId="user-1" initialStep={2} />)
-      const nextBtn = screen.getByRole('button', { name: /^next$/i })
-      expect(nextBtn).toBeDisabled()
-    })
-
-    it('shows remaining-characters hint when CV is too short', () => {
-      render(<OnboardingWizard userId="user-1" initialStep={2} />)
-      expect(screen.getByText('100 more characters needed')).toBeInTheDocument()
-    })
-
-    it('enables Next when CV meets the 100-character minimum', () => {
-      render(
-        <OnboardingWizard
-          userId="user-1"
-          initialStep={2}
-          initialValues={{ cvText: 'x'.repeat(100) }}
-        />
-      )
-      const nextBtn = screen.getByRole('button', { name: /^next$/i })
-      expect(nextBtn).not.toBeDisabled()
-    })
-
-    it('shows character count when CV meets minimum', () => {
-      render(
-        <OnboardingWizard
-          userId="user-1"
-          initialStep={2}
-          initialValues={{ cvText: 'x'.repeat(150) }}
-        />
-      )
-      expect(screen.getByText('150 characters')).toBeInTheDocument()
-    })
+  it('can go back from step 5 to step 4', async () => {
+    const user = userEvent.setup()
+    render(<OnboardingWizard {...defaultProps} initialStep={5} />)
+    await user.click(screen.getByRole('button', { name: /back/i }))
+    expect(screen.getByText('4 of 5')).toBeInTheDocument()
   })
 })
