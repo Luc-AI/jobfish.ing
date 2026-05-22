@@ -17,7 +17,7 @@ import { IndustryPicker } from '@/components/features/industry-picker'
 import type { RoleSelection } from '@/lib/supabase/types'
 
 type WizardStep = 1 | 2 | 3 | 4 | 5 | 'loading'
-type RemotePreference = 'on-site' | 'hybrid' | 'remote-ok' | 'remote-solely'
+export type RemotePreference = 'on-site' | 'hybrid' | 'remote-ok' | 'remote-solely'
 
 const REMOTE_OPTIONS: { value: RemotePreference; label: string }[] = [
   { value: 'on-site', label: 'On-site' },
@@ -83,12 +83,26 @@ function MultiChips<T extends string>({
   )
 }
 
+export interface OnboardingWizardInitialValues {
+  firstName?: string
+  lastName?: string
+  cvText?: string
+  yearsExperience?: number
+  targetRoles?: RoleSelection[]
+  targetIndustries?: string
+  excludedIndustries?: string
+  locations?: string[]
+  excludedCompanies?: string
+  remotePreference?: RemotePreference
+}
+
 interface OnboardingWizardProps {
   userId: string
   initialStep?: 1 | 2 | 3 | 4 | 5
+  initialValues?: OnboardingWizardInitialValues
 }
 
-export function OnboardingWizard({ userId, initialStep = 1 }: OnboardingWizardProps) {
+export function OnboardingWizard({ userId, initialStep = 1, initialValues = {} }: OnboardingWizardProps) {
   const router = useRouter()
   const supabaseRef = useRef(createClient())
   const supabase = supabaseRef.current
@@ -97,19 +111,23 @@ export function OnboardingWizard({ userId, initialStep = 1 }: OnboardingWizardPr
   const [saveError, setSaveError] = useState<string | null>(null)
 
   // Step 1: Name
-  const [firstName, setFirstName] = useState('')
-  const [lastName, setLastName] = useState('')
+  const [firstName, setFirstName] = useState(initialValues.firstName ?? '')
+  const [lastName, setLastName] = useState(initialValues.lastName ?? '')
 
   // Step 2: Preferences
-  const [targetRoles, setTargetRoles] = useState<RoleSelection[]>([])
-  const [yearsExperience, setYearsExperience] = useState(0)
-  const [locations, setLocations] = useState<string[]>([])
-  const [remotePreference, setRemotePreference] = useState<RemotePreference>('hybrid')
-  const [excludedCompanies, setExcludedCompanies] = useState('')
+  const [targetRoles, setTargetRoles] = useState<RoleSelection[]>(initialValues.targetRoles ?? [])
+  const [yearsExperience, setYearsExperience] = useState(initialValues.yearsExperience ?? 0)
+  const [locations, setLocations] = useState<string[]>(initialValues.locations ?? [])
+  const [remotePreference, setRemotePreference] = useState<RemotePreference>(initialValues.remotePreference ?? 'hybrid')
+  const [excludedCompanies, setExcludedCompanies] = useState(initialValues.excludedCompanies ?? '')
 
   // Step 3: Advanced
-  const [preferredIndustries, setPreferredIndustries] = useState<string[]>([])
-  const [excludedIndustries, setExcludedIndustries] = useState<string[]>([])
+  const [preferredIndustries, setPreferredIndustries] = useState<string[]>(
+    initialValues.targetIndustries ? initialValues.targetIndustries.split(',').map(s => s.trim()).filter(Boolean) : []
+  )
+  const [excludedIndustries, setExcludedIndustries] = useState<string[]>(
+    initialValues.excludedIndustries ? initialValues.excludedIndustries.split(',').map(s => s.trim()).filter(Boolean) : []
+  )
   const [preferredLanguages, setPreferredLanguages] = useState<string[]>([])
   const [companySizes, setCompanySizes] = useState<string[]>([])
 

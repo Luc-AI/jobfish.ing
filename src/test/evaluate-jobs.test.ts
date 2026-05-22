@@ -71,7 +71,7 @@ function setupMocks({
       return { select: () => ({ eq: () => jobsChain }) }
     }
     if (table === 'profiles') {
-      const profileResult = { data: [{ id: 'user-1', cv_text: 'PM background', years_experience: 0 }] }
+      const profileResult = { data: [{ id: 'user-1', cv_text: 'PM background', years_experience: 0 }], error: null }
       const chain = makeChainable(profileResult)
       return { select: () => ({ eq: () => chain }) }
     }

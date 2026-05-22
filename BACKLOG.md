@@ -4,13 +4,6 @@ Items deferred for later. Add new items with category, description, and why defe
 
 ---
 
-## Do Next
-
-**Onboarding completion → empty dashboard (not working as expected)**
-After finishing onboarding the loading splash shows briefly ("Finding your first matches…") then forwards to an empty dashboard. Evaluated jobs are not appearing. Tested on Dev environment. Suspected causes: (1) `evaluate-jobs` task errors out silently on some/all jobs (OpenRouter model ID issues, JSON parse failures — see Bugs below), (2) `sync-jobs` hasn't run in dev so the `jobs` table may be empty, (3) the `/api/onboarding/complete` fetch is timing out or failing silently and the wizard swallows the error. Needs end-to-end diagnosis with Trigger.dev CLI running, Network tab open, and `jobs` table row count verified before re-testing. **Observation:** the `evaluate-jobs` Trigger.dev run does not appear in the dashboard after onboarding completes — suggesting the task is never being triggered at all, i.e. the issue is upstream of the task itself (the `/api/onboarding/complete` route may not be reaching the `triggerAndWait` call).
-
----
-
 ## Bugs
 
 **Evaluation failure alerting — failures going unnoticed**
@@ -48,8 +41,8 @@ The dashboard currently has no sort controls. Add at minimum three sort modes: (
 **Restore Geoapify location picker (nice-to-have)**
 Location input was previously backed by a Geoapify autocomplete picker but was removed or broke at some point. Restore city/country autocomplete using the `GEOAPIFY_API_KEY` already in `.env.local` and the existing `/api/geoapify/autocomplete` route. Deferred — free-text location entry works for now.
 
-**Years of experience: move from per-role to a single global input**
-Currently the role picker shows a YoE stepper for every individual role selected, which becomes cluttered when multiple roles are chosen. Consider replacing with a single "total years of experience" field at the profile level, or a condensed inline representation. Deferred — needs design exploration before touching the role picker schema (`target_roles` JSONB stores `{role, yoe}` per entry).
+**Location radius / commute tolerance (nice-to-have)**
+Instead of specifying exact regions, users should be able to express how far they're willing to commute — either as a distance radius (e.g. 30 km) or a time budget (e.g. 45 min). The system would then resolve that into eligible locations automatically, so no relevant job slips through because the user didn't think to list a particular suburb or city. Needs a geocoding step (Geoapify key is already in `.env.local`) to convert the user's home location + radius into a set of matched regions, fed into the evaluation prompt or pre-filter. Deferred — depends on stable location schema and restored location picker (see above).
 
 ---
 
