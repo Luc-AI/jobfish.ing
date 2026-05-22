@@ -27,6 +27,7 @@ export default async function PreferencesPage() {
         defaultValues={{
           cvText: profile?.cv_text ?? '',
           targetRoles: preferences?.target_roles ?? [],
+          yearsExperience: profile?.years_experience ?? 0,
           targetIndustries: preferences?.target_industries ?? [],
           excludedIndustries: preferences?.excluded_industries ?? [],
           locations: preferences?.locations ?? [],
