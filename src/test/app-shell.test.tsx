@@ -4,6 +4,7 @@ import { AppShell } from '@/components/layout/app-shell'
 
 vi.mock('next/navigation', () => ({
   usePathname: vi.fn(() => '/dashboard'),
+  useRouter: vi.fn(() => ({ push: vi.fn() })),
 }))
 
 describe('AppShell', () => {

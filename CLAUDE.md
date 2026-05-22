@@ -1,5 +1,13 @@
 @AGENTS.md
 
+## Dev Workflow
+
+**UI/UX edits — toast notification checklist**
+Whenever editing a UI flow or user-facing interaction, ask:
+- Does this action have a success/failure state the user should be informed of?
+- Is there an existing toast for this path, or is feedback currently silent/inline-only?
+- If adding or changing a form, button, or async operation — wire up toasts for both success and error.
+
 ## Git Workflow (STRICT — do not deviate)
 
 **Branches:**
