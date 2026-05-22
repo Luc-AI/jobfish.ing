@@ -36,10 +36,19 @@ export const syncJobsTask = schedules.task({
 
     if (delta.added.length > 0) {
       const normalized = delta.added.map(normalizeJobichJob)
+
+      // Deduplicate by URL within the batch — same URL can appear with different external_ids
+      const seenUrls = new Set<string>()
+      const deduped = normalized.filter(j => {
+        if (seenUrls.has(j.url)) return false
+        seenUrls.add(j.url)
+        return true
+      })
+
       const { data: inserted, error } = await supabase
         .from('jobs')
         .upsert(
-          normalized.map(j => ({
+          deduped.map(j => ({
             external_id: j.external_id,
             title: j.title,
             company: j.company,
@@ -53,7 +62,7 @@ export const syncJobsTask = schedules.task({
             industry: j.industry,
             is_active: true,
           })),
-          { onConflict: 'external_id', ignoreDuplicates: false }
+          { onConflict: 'url', ignoreDuplicates: false }
         )
         .select('id')
 
