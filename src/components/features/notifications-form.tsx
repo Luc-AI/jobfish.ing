@@ -12,6 +12,7 @@ interface NotificationsFormProps {
   defaultThreshold: number
   defaultEnabled: boolean
   lastNotifiedAt?: string | null
+  userEmail?: string
   onSave: (values: { threshold: number; notificationsEnabled: boolean }) => Promise<void>
 }
 
@@ -19,6 +20,7 @@ export function NotificationsForm({
   defaultThreshold,
   defaultEnabled,
   lastNotifiedAt,
+  userEmail,
   onSave,
 }: NotificationsFormProps) {
   const [threshold, setThreshold] = useState(defaultThreshold)
@@ -60,17 +62,27 @@ export function NotificationsForm({
         </p>
       </div>
 
-      <div className="flex items-center justify-between py-4 border-y">
-        <div>
-          <Label>Email notifications</Label>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            Receive job alerts by email when a match exceeds your threshold.
-          </p>
+      <div className="py-4 border-y space-y-2">
+        <div className="flex items-center justify-between">
+          <div>
+            <Label>Email notifications</Label>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              Receive job alerts by email when a match exceeds your threshold.
+            </p>
+          </div>
+          <Switch
+            checked={notificationsEnabled}
+            onCheckedChange={setNotificationsEnabled}
+          />
         </div>
-        <Switch
-          checked={notificationsEnabled}
-          onCheckedChange={setNotificationsEnabled}
-        />
+        {userEmail && (
+          <p className="text-sm text-muted-foreground">
+            Sending to <span className="font-medium text-foreground">{userEmail}</span>.{' '}
+            <a href="/account" className="underline underline-offset-2 hover:text-foreground transition-colors">
+              Change in Account settings.
+            </a>
+          </p>
+        )}
       </div>
 
       {lastNotifiedAt && (

@@ -34,6 +34,7 @@ export default async function NotificationsPage() {
         defaultThreshold={profile?.threshold ?? 7.0}
         defaultEnabled={profile?.notifications_enabled ?? true}
         lastNotifiedAt={lastEval?.notified_at ?? null}
+        userEmail={user.email}
         onSave={saveNotificationSettings}
       />
     </div>
