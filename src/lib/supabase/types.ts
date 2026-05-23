@@ -121,6 +121,7 @@ export type Database = {
           working_hours: number | null
           source_domain: string | null
           detail_facts: Json | null
+          categories: string[] | null
         }
         Insert: {
           id?: string
@@ -143,6 +144,7 @@ export type Database = {
           working_hours?: number | null
           source_domain?: string | null
           detail_facts?: Json | null
+          categories?: string[] | null
         }
         Update: {
           id?: string
@@ -165,6 +167,7 @@ export type Database = {
           working_hours?: number | null
           source_domain?: string | null
           detail_facts?: Json | null
+          categories?: string[] | null
         }
         Relationships: []
       }
