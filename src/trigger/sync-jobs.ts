@@ -4,6 +4,7 @@ import * as Sentry from '@sentry/node'
 import { createServiceClient } from '@/lib/supabase/service'
 import { fetchDelta, normalizeJobichJob } from './lib/jobich'
 import { evaluateJobsTask } from './evaluate-jobs'
+import { categorizeJobsTask } from './categorize-jobs'
 
 export const syncJobsTask = schedules.task({
   id: 'sync-jobs',
@@ -82,6 +83,11 @@ export const syncJobsTask = schedules.task({
     if (cursorError) throw new Error(`Failed to update sync cursor: ${cursorError.message}`)
 
     if (newJobIds.length > 0) {
+      const catResult = await categorizeJobsTask.triggerAndWait({ jobIds: newJobIds })
+      if (!catResult.ok) {
+        Sentry.captureException(new Error(`categorize-jobs failed: ${catResult.error}`))
+      }
+
       const result = await evaluateJobsTask.triggerAndWait({ jobIds: newJobIds })
       if (!result.ok) {
         Sentry.captureException(new Error(`evaluate-jobs failed: ${result.error}`))
