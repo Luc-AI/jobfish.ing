@@ -25,6 +25,10 @@ vi.mock('@sentry/node', () => ({
   captureMessage: vi.fn(),
 }))
 
+vi.mock('@/trigger/send-instant-alert', () => ({
+  sendInstantAlertTask: { trigger: vi.fn() },
+}))
+
 const { evaluateJobsTask } = await import('@/trigger/evaluate-jobs')
 
 const mockEvalResult = {
