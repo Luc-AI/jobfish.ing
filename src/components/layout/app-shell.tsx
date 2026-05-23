@@ -3,10 +3,18 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { LayoutDashboard, Settings, Bell, LogOut, Menu } from 'lucide-react'
+import { LayoutDashboard, Settings, Bell, LogOut, UserCircle, ChevronUp, Menu } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -16,9 +24,10 @@ const navItems = [
 
 interface AppShellProps {
   children: React.ReactNode
+  userEmail?: string
 }
 
-export function AppShell({ children }: AppShellProps) {
+export function AppShell({ children, userEmail }: AppShellProps) {
   const pathname = usePathname()
   const router = useRouter()
   const [open, setOpen] = useState(false)
@@ -92,13 +101,32 @@ export function AppShell({ children }: AppShellProps) {
           {navLinks()}
         </nav>
         <div className="p-3 border-t">
-          <button
-            onClick={handleSignOut}
-            className="flex items-center gap-2.5 w-full px-3 py-2 rounded-md text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-          >
-            <LogOut className="h-4 w-4" />
-            Log out
-          </button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="flex items-center gap-2.5 w-full px-3 py-2 rounded-md text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">
+                <UserCircle className="h-4 w-4 shrink-0" />
+                <span className="flex-1 truncate text-left">Account</span>
+                <ChevronUp className="h-3 w-3 shrink-0" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent side="top" align="start" className="w-52">
+              {userEmail && (
+                <>
+                  <DropdownMenuLabel className="font-normal text-xs text-muted-foreground truncate">
+                    {userEmail}
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                </>
+              )}
+              <DropdownMenuItem
+                onClick={handleSignOut}
+                className="text-destructive focus:text-destructive cursor-pointer"
+              >
+                <LogOut className="h-4 w-4 mr-2" />
+                Log out
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </aside>
 
