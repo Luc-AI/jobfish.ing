@@ -136,6 +136,7 @@ describe('notifyUsersTask', () => {
             reasoning: 'From LinkedIn',
             applyUrl: 'https://linkedin.com/jobs/123',
             source: 'LinkedIn',
+            isHotPick: false,
           },
           {
             jobTitle: 'Head of Product',
@@ -145,6 +146,7 @@ describe('notifyUsersTask', () => {
             reasoning: 'From career site',
             applyUrl: 'https://acme.com/careers/head-of-product',
             source: 'company_site',
+            isHotPick: false,
           },
         ],
       },
@@ -200,6 +202,7 @@ describe('notifyUsersTask', () => {
             reasoning: 'Use the first related job',
             applyUrl: 'https://example.com/first-role',
             source: 'LinkedIn',
+            isHotPick: false,
           },
         ],
       },
@@ -345,6 +348,7 @@ describe('notifyUsersTask', () => {
           reasoning: 'Strong match',
           applyUrl: 'https://example.com/head-of-product',
           source: 'LinkedIn',
+          isHotPick: false,
         },
         {
           jobTitle: 'Director of Product',
@@ -354,6 +358,7 @@ describe('notifyUsersTask', () => {
           reasoning: 'Solid fit',
           applyUrl: 'https://example.com/director-of-product',
           source: 'jobs.ch',
+          isHotPick: false,
         },
       ],
       [
@@ -365,6 +370,7 @@ describe('notifyUsersTask', () => {
           reasoning: 'Great leadership overlap',
           applyUrl: 'https://example.com/vp-product',
           source: 'LinkedIn',
+          isHotPick: false,
         },
       ],
     ])

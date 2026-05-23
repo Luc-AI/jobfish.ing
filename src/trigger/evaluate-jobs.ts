@@ -5,6 +5,7 @@ import { createServiceClient } from '@/lib/supabase/service'
 import type { RoleSelection } from '@/lib/supabase/types'
 import { buildEvaluationPrompt, callOpenRouter, parseEvaluationResponse } from './lib/evaluate'
 import { filterJobsForUser } from './lib/pre-filter'
+import { sendInstantAlertTask } from './send-instant-alert'
 
 interface EvaluateJobsPayload {
   jobIds?: string[]
@@ -45,7 +46,7 @@ export const evaluateJobsTask = task({
 
     let profilesQuery = supabase
       .from('profiles')
-      .select('id, cv_text, years_experience')
+      .select('id, cv_text, years_experience, instant_alert_threshold')
       .eq('onboarding_completed', true)
 
     if (userIds && userIds.length > 0) {
@@ -81,6 +82,8 @@ export const evaluateJobsTask = task({
         excluded_industries: (prefs?.excluded_industries ?? []) as string[],
       })
 
+      const evaluatedJobIds: string[] = []
+
       for (const job of candidateJobs) {
         try {
           const prompt = buildEvaluationPrompt({
@@ -115,12 +118,35 @@ export const evaluateJobsTask = task({
               { onConflict: 'job_id,user_id', ignoreDuplicates: true },
             )
 
+          evaluatedJobIds.push(job.id)
           evaluatedCount++
         } catch (err) {
           const msg = `job ${job.id} / user ${user.id}: ${err instanceof Error ? err.message : String(err)}`
           Sentry.captureException(err, { extra: { jobId: job.id, userId: user.id, phase } })
           console.error(`Evaluation failed for ${msg}`)
           errors.push(msg)
+        }
+      }
+
+      if (user.instant_alert_threshold != null && evaluatedJobIds.length > 0) {
+        // Query for evaluation IDs that meet the threshold for this user's freshly evaluated jobs
+        const { data: hotEvals } = await supabase
+          .from('job_evaluations')
+          .select('id')
+          .eq('user_id', user.id)
+          .in('job_id', evaluatedJobIds)
+          .gte('score', user.instant_alert_threshold)
+          .is('instant_alerted_at', null)
+
+        const hotEvalIds = (hotEvals ?? []).map(e => e.id)
+
+        if (hotEvalIds.length > 0) {
+          try {
+            await sendInstantAlertTask.trigger({ userId: user.id, evaluationIds: hotEvalIds })
+          } catch (err) {
+            Sentry.captureException(err, { extra: { userId: user.id, hotEvalIds, phase } })
+            console.error(`Failed to trigger instant alert for user ${user.id}:`, err)
+          }
         }
       }
     }

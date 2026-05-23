@@ -27,6 +27,7 @@ export type Database = {
           first_name: string | null
           last_name: string | null
           years_experience: number
+          instant_alert_threshold: number | null
         }
         Insert: {
           id: string
@@ -39,6 +40,7 @@ export type Database = {
           first_name?: string | null
           last_name?: string | null
           years_experience?: number
+          instant_alert_threshold?: number | null
         }
         Update: {
           id?: string
@@ -51,6 +53,7 @@ export type Database = {
           first_name?: string | null
           last_name?: string | null
           years_experience?: number
+          instant_alert_threshold?: number | null
         }
         Relationships: []
       }
@@ -175,6 +178,7 @@ export type Database = {
           dimensions: Json | null
           detailed_reasoning: Json | null
           notified_at: string | null
+          instant_alerted_at: string | null
           created_at: string
         }
         Insert: {
@@ -186,6 +190,7 @@ export type Database = {
           dimensions?: Json | null
           detailed_reasoning?: Json | null
           notified_at?: string | null
+          instant_alerted_at?: string | null
           created_at?: string
         }
         Update: {
@@ -197,6 +202,7 @@ export type Database = {
           dimensions?: Json | null
           detailed_reasoning?: Json | null
           notified_at?: string | null
+          instant_alerted_at?: string | null
           created_at?: string
         }
         Relationships: [

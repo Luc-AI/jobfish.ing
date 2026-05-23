@@ -33,6 +33,7 @@ export default async function NotificationsPage() {
       <NotificationsForm
         defaultThreshold={profile?.threshold ?? 7.0}
         defaultEnabled={profile?.notifications_enabled ?? true}
+        defaultInstantAlertThreshold={profile?.instant_alert_threshold ?? null}
         lastNotifiedAt={lastEval?.notified_at ?? null}
         onSave={saveNotificationSettings}
       />
