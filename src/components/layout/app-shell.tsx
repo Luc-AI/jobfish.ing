@@ -36,7 +36,7 @@ export function AppShell({ children, userEmail }: AppShellProps) {
   }
 
   return (
-    <div className="min-h-screen flex">
+    <div className="h-screen flex overflow-hidden">
       <aside className="w-56 border-r bg-card flex flex-col shrink-0">
         <div className="p-5 border-b">
           <span className="font-bold text-lg tracking-tight">jobfishing</span>
