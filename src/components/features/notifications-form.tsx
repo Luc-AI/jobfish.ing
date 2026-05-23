@@ -123,7 +123,7 @@ export function NotificationsForm({
         </p>
       )}
 
-      <Button onClick={handleSave} disabled={saving}>
+      <Button onClick={handleSave} disabled={saving} className="w-full md:w-auto h-11 md:h-8">
         {saving ? 'Saving…' : 'Save settings'}
       </Button>
     </div>
