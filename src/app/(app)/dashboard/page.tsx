@@ -26,7 +26,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   const hasMore = (evaluations?.length ?? 0) === pageSize
 
   return (
-    <div className="p-8 max-w-2xl mx-auto">
+    <div className="px-4 py-6 md:px-8 md:py-8 w-full max-w-2xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Your feed</h1>

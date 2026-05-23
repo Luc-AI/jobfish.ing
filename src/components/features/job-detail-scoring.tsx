@@ -28,7 +28,7 @@ export function JobDetailScoring({ evaluation }: JobDetailScoringProps) {
       </div>
 
       {dimensions && detailed_reasoning && (
-        <div className="grid grid-cols-5 gap-2">
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
           {Object.entries(dimensions).map(([key, val]) => (
             <Card key={key}>
               <CardContent className="p-3 text-center">
@@ -53,7 +53,7 @@ export function JobDetailScoring({ evaluation }: JobDetailScoringProps) {
             <span className="text-xs text-muted-foreground">Best dimension score</span>
             <ScoreBadge score={Math.max(...(Object.values(dimensions) as number[]))} />
           </div>
-          <div className="grid grid-cols-5 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
             {Object.entries(dimensions).map(([key, val]) => (
               <Card key={key}>
                 <CardContent className="p-3 text-center">

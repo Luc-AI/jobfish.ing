@@ -88,7 +88,7 @@ export function JobCard({ evaluation, onAction }: JobCardProps) {
         </div>
 
         {evaluation.dimensions && (
-          <div className="grid grid-cols-5 gap-2 mt-4">
+          <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 mt-4">
             {Object.entries(evaluation.dimensions).map(([key, val]) => (
               <div key={key} className="text-center">
                 <p className="text-xs text-muted-foreground capitalize">
@@ -121,44 +121,46 @@ export function JobCard({ evaluation, onAction }: JobCardProps) {
           </div>
         )}
 
-        <div className="flex items-center gap-2 mt-4 pt-4 border-t">
+        <div className="flex flex-col gap-2 mt-4 pt-4 border-t">
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={async () => {
+                posthog.capture('job_saved', { job_id: job.id, score: evaluation.score })
+                try {
+                  await onAction(job.id, 'saved')
+                  toast.success('Job saved')
+                } catch {
+                  toast.error('Failed to save job')
+                }
+              }}
+              className={cn(currentStatus === 'saved' && 'border-primary')}
+            >
+              Save
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={async () => {
+                posthog.capture('job_hidden', { job_id: job.id, score: evaluation.score })
+                try {
+                  await onAction(job.id, 'hidden')
+                  toast.success('Job hidden')
+                } catch {
+                  toast.error('Failed to hide job')
+                }
+              }}
+            >
+              Hide
+            </Button>
+            <Button size="sm" variant="ghost" asChild>
+              <Link href={`/dashboard/jobs/${job.id}`}>View details</Link>
+            </Button>
+          </div>
           <Button
             size="sm"
-            variant="outline"
-            onClick={async () => {
-              posthog.capture('job_saved', { job_id: job.id, score: evaluation.score })
-              try {
-                await onAction(job.id, 'saved')
-                toast.success('Job saved')
-              } catch {
-                toast.error('Failed to save job')
-              }
-            }}
-            className={cn(currentStatus === 'saved' && 'border-primary')}
-          >
-            Save
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={async () => {
-              posthog.capture('job_hidden', { job_id: job.id, score: evaluation.score })
-              try {
-                await onAction(job.id, 'hidden')
-                toast.success('Job hidden')
-              } catch {
-                toast.error('Failed to hide job')
-              }
-            }}
-          >
-            Hide
-          </Button>
-          <Button size="sm" variant="ghost" asChild>
-            <Link href={`/dashboard/jobs/${job.id}`}>View details</Link>
-          </Button>
-          <div className="flex-1" />
-          <Button
-            size="sm"
+            className="w-full sm:w-auto"
             asChild
             onClick={async () => {
               posthog.capture('job_applied', { job_id: job.id, score: evaluation.score })

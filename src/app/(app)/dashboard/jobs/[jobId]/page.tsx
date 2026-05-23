@@ -38,7 +38,7 @@ export default async function JobDetailPage({ params }: JobDetailPageProps) {
   if (!detail) notFound()
 
   return (
-    <div className="p-8 max-w-2xl mx-auto space-y-8">
+    <div className="px-4 py-6 md:px-8 md:py-8 w-full max-w-2xl mx-auto space-y-8">
       <Link
         href="/dashboard"
         className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
