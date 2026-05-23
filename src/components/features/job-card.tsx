@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { ScoreBadge } from './score-badge'
 import { cn } from '@/lib/utils'
 import { posthog } from '@/lib/posthog'
+import { toast } from 'sonner'
 import Link from 'next/link'
 
 interface Dimensions {
@@ -42,7 +43,7 @@ export interface JobEvaluation {
 
 interface JobCardProps {
   evaluation: JobEvaluation
-  onAction: (jobId: string, action: 'saved' | 'hidden' | 'applied') => void
+  onAction: (jobId: string, action: 'saved' | 'hidden' | 'applied') => Promise<void>
 }
 
 const SOURCE_LABELS: Record<string, string> = {
@@ -124,9 +125,14 @@ export function JobCard({ evaluation, onAction }: JobCardProps) {
           <Button
             size="sm"
             variant="outline"
-            onClick={() => {
+            onClick={async () => {
               posthog.capture('job_saved', { job_id: job.id, score: evaluation.score })
-              onAction(job.id, 'saved')
+              try {
+                await onAction(job.id, 'saved')
+                toast.success('Job saved')
+              } catch {
+                toast.error('Failed to save job')
+              }
             }}
             className={cn(currentStatus === 'saved' && 'border-primary')}
           >
@@ -135,9 +141,14 @@ export function JobCard({ evaluation, onAction }: JobCardProps) {
           <Button
             size="sm"
             variant="outline"
-            onClick={() => {
+            onClick={async () => {
               posthog.capture('job_hidden', { job_id: job.id, score: evaluation.score })
-              onAction(job.id, 'hidden')
+              try {
+                await onAction(job.id, 'hidden')
+                toast.success('Job hidden')
+              } catch {
+                toast.error('Failed to hide job')
+              }
             }}
           >
             Hide
@@ -149,9 +160,14 @@ export function JobCard({ evaluation, onAction }: JobCardProps) {
           <Button
             size="sm"
             asChild
-            onClick={() => {
+            onClick={async () => {
               posthog.capture('job_applied', { job_id: job.id, score: evaluation.score })
-              onAction(job.id, 'applied')
+              try {
+                await onAction(job.id, 'applied')
+                toast.success('Marked as applied — good luck!')
+              } catch {
+                toast.error('Failed to record application')
+              }
             }}
           >
             <a href={job.url} target="_blank" rel="noopener noreferrer">
