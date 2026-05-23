@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { ScoreBadge } from './score-badge'
 import { MapPin, ExternalLink } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { toast } from 'sonner'
 import type { JobDetailData } from '@/lib/supabase/queries'
 
 interface JobDetailHeaderProps {
@@ -20,8 +21,23 @@ export function JobDetailHeader({ job, score, action, onAction }: JobDetailHeade
   const currentStatus = action?.status
 
   function handleAction(status: 'saved' | 'hidden' | 'applied') {
-    startTransition(() => {
-      onAction(job.id, status)
+    startTransition(async () => {
+      try {
+        await onAction(job.id, status)
+        const successMessages = {
+          saved: 'Job saved',
+          hidden: 'Job hidden',
+          applied: 'Marked as applied — good luck!',
+        }
+        toast.success(successMessages[status])
+      } catch {
+        const errorMessages = {
+          saved: 'Failed to save job',
+          hidden: 'Failed to hide job',
+          applied: 'Failed to record application',
+        }
+        toast.error(errorMessages[status])
+      }
     })
   }
 

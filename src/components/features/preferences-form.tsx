@@ -9,6 +9,7 @@ import { Slider } from '@/components/ui/slider'
 import { Textarea } from '@/components/ui/textarea'
 import { Clock } from 'lucide-react'
 import { posthog } from '@/lib/posthog'
+import { toast } from 'sonner'
 import { RolePicker } from '@/components/features/role-picker'
 import { IndustryPicker } from '@/components/features/industry-picker'
 import type { RoleSelection } from '@/lib/supabase/types'
@@ -106,25 +107,28 @@ export function PreferencesForm({ defaultValues, onSave }: PreferencesFormProps)
   const [locations, setLocations] = useState(arrayToInput(defaultValues.locations))
   const [excludedCompanies, setExcludedCompanies] = useState(arrayToInput(defaultValues.excludedCompanies))
   const [saving, setSaving] = useState(false)
-  const [saved, setSaved] = useState(false)
 
   async function handleSave() {
     setSaving(true)
-    await onSave({
-      cvText,
-      targetRoles,
-      yearsExperience,
-      targetIndustries,
-      excludedIndustries,
-      preferredLanguages,
-      companySizes,
-      locations: inputToArray(locations),
-      excludedCompanies: inputToArray(excludedCompanies),
-    })
-    posthog.capture('preferences_updated')
-    setSaving(false)
-    setSaved(true)
-    setTimeout(() => setSaved(false), 2000)
+    try {
+      await onSave({
+        cvText,
+        targetRoles,
+        yearsExperience,
+        targetIndustries,
+        excludedIndustries,
+        preferredLanguages,
+        companySizes,
+        locations: inputToArray(locations),
+        excludedCompanies: inputToArray(excludedCompanies),
+      })
+      posthog.capture('preferences_updated')
+      toast.success('Preferences saved')
+    } catch {
+      toast.error('Failed to save preferences')
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
@@ -203,7 +207,7 @@ export function PreferencesForm({ defaultValues, onSave }: PreferencesFormProps)
         <p className="text-xs text-destructive">At least one target role is required.</p>
       )}
       <Button onClick={handleSave} disabled={saving || targetRoles.length === 0}>
-        {saving ? 'Saving…' : saved ? 'Saved ✓' : 'Save preferences'}
+        {saving ? 'Saving…' : 'Save preferences'}
       </Button>
     </div>
   )

@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -20,6 +21,7 @@ export default function ResetPasswordPage() {
     setError(null)
     const { error } = await supabase.auth.updateUser({ password })
     if (error) {
+      toast.error(error.message)
       setError(error.message)
       setLoading(false)
       return

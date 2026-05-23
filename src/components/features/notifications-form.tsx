@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label'
 import { Slider } from '@/components/ui/slider'
 import { Switch } from '@/components/ui/switch'
 import { posthog } from '@/lib/posthog'
+import { toast } from 'sonner'
 
 interface NotificationsFormProps {
   defaultThreshold: number
@@ -23,18 +24,21 @@ export function NotificationsForm({
   const [threshold, setThreshold] = useState(defaultThreshold)
   const [notificationsEnabled, setNotificationsEnabled] = useState(defaultEnabled)
   const [saving, setSaving] = useState(false)
-  const [saved, setSaved] = useState(false)
 
   async function handleSave() {
     setSaving(true)
-    await onSave({ threshold, notificationsEnabled })
-    posthog.capture('notification_settings_updated', {
-      threshold,
-      notifications_enabled: notificationsEnabled,
-    })
-    setSaving(false)
-    setSaved(true)
-    setTimeout(() => setSaved(false), 2000)
+    try {
+      await onSave({ threshold, notificationsEnabled })
+      posthog.capture('notification_settings_updated', {
+        threshold,
+        notifications_enabled: notificationsEnabled,
+      })
+      toast.success('Settings saved')
+    } catch {
+      toast.error('Failed to save settings')
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
@@ -79,7 +83,7 @@ export function NotificationsForm({
       )}
 
       <Button onClick={handleSave} disabled={saving}>
-        {saving ? 'Saving…' : saved ? 'Saved ✓' : 'Save settings'}
+        {saving ? 'Saving…' : 'Save settings'}
       </Button>
     </div>
   )
