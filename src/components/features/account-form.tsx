@@ -44,6 +44,7 @@ export function AccountForm({ firstName: initialFirst, lastName: initialLast, em
       if (error) throw error
       setEmailConfirmationSent(true)
       setNewEmail('')
+      toast.success('Confirmation email sent. Check your inbox.')
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to request email change'
       toast.error(message)

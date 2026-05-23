@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Slider } from '@/components/ui/slider'
@@ -78,9 +79,9 @@ export function NotificationsForm({
         {userEmail && (
           <p className="text-sm text-muted-foreground">
             Sending to <span className="font-medium text-foreground">{userEmail}</span>.{' '}
-            <a href="/account" className="underline underline-offset-2 hover:text-foreground transition-colors">
+            <Link href="/account" className="underline underline-offset-2 hover:text-foreground transition-colors">
               Change in Account settings.
-            </a>
+            </Link>
           </p>
         )}
       </div>

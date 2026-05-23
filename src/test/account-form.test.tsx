@@ -85,6 +85,15 @@ describe('AccountForm – email section', () => {
     })
   })
 
+  it('shows success toast after email change request', async () => {
+    renderWithToaster(<AccountForm {...defaultProps} />)
+    await userEvent.type(screen.getByLabelText(/new email/i), 'new@example.com')
+    await userEvent.click(screen.getByRole('button', { name: /change email/i }))
+    await waitFor(() => {
+      expect(screen.getByText('Confirmation email sent. Check your inbox.')).toBeInTheDocument()
+    })
+  })
+
   it('shows error toast when updateUser returns an error', async () => {
     mockUpdateUser.mockResolvedValue({ error: new Error('Invalid email') })
     renderWithToaster(<AccountForm {...defaultProps} />)
