@@ -57,7 +57,7 @@ export function AppShell({ children, userEmail }: AppShellProps) {
     ))
 
   return (
-    <div className="min-h-screen flex flex-col md:flex-row">
+    <div className="flex flex-col md:flex-row h-screen overflow-hidden">
       {/* Mobile header — visible only below md */}
       <header className="flex md:hidden items-center justify-between px-4 h-14 border-b bg-card shrink-0">
         <span className="font-bold text-lg tracking-tight">jobfishing</span>
@@ -97,7 +97,7 @@ export function AppShell({ children, userEmail }: AppShellProps) {
           <span className="font-bold text-lg tracking-tight">jobfishing</span>
           <p className="text-xs text-muted-foreground mt-0.5">Jobs find you.</p>
         </div>
-        <nav className="flex-1 p-3 space-y-0.5">
+        <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
           {navLinks()}
         </nav>
         <div className="p-3 border-t">
@@ -118,6 +118,13 @@ export function AppShell({ children, userEmail }: AppShellProps) {
                   <DropdownMenuSeparator />
                 </>
               )}
+              <DropdownMenuItem asChild>
+                <Link href="/account" className="cursor-pointer">
+                  <UserCircle className="h-4 w-4 mr-2" />
+                  Account settings
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
               <DropdownMenuItem
                 onClick={handleSignOut}
                 className="text-destructive focus:text-destructive cursor-pointer"
