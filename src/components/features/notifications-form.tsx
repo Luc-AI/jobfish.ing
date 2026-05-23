@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Slider } from '@/components/ui/slider'
@@ -13,6 +14,7 @@ interface NotificationsFormProps {
   defaultEnabled: boolean
   defaultInstantAlertThreshold: number | null
   lastNotifiedAt?: string | null
+  userEmail?: string
   onSave: (values: { threshold: number; notificationsEnabled: boolean; instantAlertThreshold: number | null }) => Promise<void>
 }
 
@@ -21,6 +23,7 @@ export function NotificationsForm({
   defaultEnabled,
   defaultInstantAlertThreshold,
   lastNotifiedAt,
+  userEmail,
   onSave,
 }: NotificationsFormProps) {
   const [threshold, setThreshold] = useState(defaultThreshold)
@@ -101,17 +104,27 @@ export function NotificationsForm({
         )}
       </div>
 
-      <div className="flex items-center justify-between py-4 border-y">
-        <div>
-          <Label>Email notifications</Label>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            Receive job alerts by email when a match exceeds your threshold.
-          </p>
+      <div className="py-4 border-y space-y-2">
+        <div className="flex items-center justify-between">
+          <div>
+            <Label>Email notifications</Label>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              Receive job alerts by email when a match exceeds your threshold.
+            </p>
+          </div>
+          <Switch
+            checked={notificationsEnabled}
+            onCheckedChange={setNotificationsEnabled}
+          />
         </div>
-        <Switch
-          checked={notificationsEnabled}
-          onCheckedChange={setNotificationsEnabled}
-        />
+        {userEmail && (
+          <p className="text-sm text-muted-foreground">
+            Sending to <span className="font-medium text-foreground">{userEmail}</span>.{' '}
+            <Link href="/account" className="underline underline-offset-2 hover:text-foreground transition-colors">
+              Change in Account settings.
+            </Link>
+          </p>
+        )}
       </div>
 
       {lastNotifiedAt && (
