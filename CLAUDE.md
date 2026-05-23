@@ -8,6 +8,16 @@ Whenever editing a UI flow or user-facing interaction, ask:
 - Is there an existing toast for this path, or is feedback currently silent/inline-only?
 - If adding or changing a form, button, or async operation — wire up toasts for both success and error.
 
+**UI/UX edits — mobile checklist**
+Whenever deploying a change with impact on UX/UI, verify at 390px before completing the task:
+- Does the layout render without horizontal scroll at 390px?
+- Are all interactive elements ≥44px touch targets?
+- Is text readable without zooming (body ≥16px)?
+- Are forms usable with a mobile keyboard (inputs scroll into view)?
+- Does navigation (drawer/header) open and close correctly on mobile?
+
+Test using browser DevTools → device emulation → iPhone 14 (390×844). Closes #102.
+
 ## Git Workflow (STRICT — do not deviate)
 
 **Branches:**
