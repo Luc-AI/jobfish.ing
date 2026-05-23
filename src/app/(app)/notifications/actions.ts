@@ -7,6 +7,7 @@ import { updateProfile } from '@/lib/supabase/queries'
 export async function saveNotificationSettings(values: {
   threshold: number
   notificationsEnabled: boolean
+  instantAlertThreshold: number | null
 }) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -15,6 +16,7 @@ export async function saveNotificationSettings(values: {
   await updateProfile(user.id, {
     threshold: values.threshold,
     notifications_enabled: values.notificationsEnabled,
+    instant_alert_threshold: values.instantAlertThreshold,
   })
 
   revalidatePath('/notifications')

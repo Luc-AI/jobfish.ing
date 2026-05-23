@@ -30,6 +30,7 @@ interface EvaluationRow {
   reasoning: string | null
   user_id: string
   created_at?: string
+  instant_alerted_at?: string | null
   jobs: EvaluationJobRow | EvaluationJobRow[] | null
 }
 
@@ -100,6 +101,7 @@ export function buildUserDigests(
       reasoning: evaluation.reasoning ?? '',
       applyUrl: job.url,
       source: formatSource(job.source),
+      isHotPick: !!evaluation.instant_alerted_at,
     }
 
     if (existingDigest) {
@@ -147,6 +149,7 @@ export const notifyUsersTask = schedules.task({
         reasoning,
         user_id,
         created_at,
+        instant_alerted_at,
         jobs (
           title,
           company,
