@@ -47,24 +47,32 @@ describe('parseBatchResponse', () => {
 
 describe('validateCategories', () => {
   it('returns valid taxonomy categories unchanged', () => {
-    expect(validateCategories(['Engineering', 'AI & Data'])).toEqual(['Engineering', 'AI & Data'])
+    expect(validateCategories(['engineering', 'product'])).toEqual(['engineering', 'product'])
   })
 
   it('filters out invalid categories', () => {
-    expect(validateCategories(['Engineering', 'Invented Category'])).toEqual(['Engineering'])
+    expect(validateCategories(['engineering', 'Invented Category'])).toEqual(['engineering'])
   })
 
   it('caps at 3 categories', () => {
-    const input = ['Engineering', 'AI & Data', 'Cybersecurity', 'Product']
+    const input = ['engineering', 'product', 'sales', 'marketing']
     expect(validateCategories(input)).toHaveLength(3)
   })
 
-  it('falls back to ["Other"] when all categories are invalid', () => {
-    expect(validateCategories(['NotReal', 'AlsoFake'])).toEqual(['Other'])
+  it('falls back to ["more"] when all categories are invalid', () => {
+    expect(validateCategories(['NotReal', 'AlsoFake'])).toEqual(['more'])
   })
 
-  it('falls back to ["Other"] for empty input', () => {
-    expect(validateCategories([])).toEqual(['Other'])
+  it('falls back to ["more"] for empty input', () => {
+    expect(validateCategories([])).toEqual(['more'])
+  })
+
+  it('returns ["more"] when input contains old "Other" value', () => {
+    expect(validateCategories(['Other'])).toEqual(['more'])
+  })
+
+  it('filters out invalid old taxonomy values', () => {
+    expect(validateCategories(['engineering', 'invalid'])).toEqual(['engineering'])
   })
 })
 
@@ -92,14 +100,14 @@ describe('categorizeJobsTask', () => {
     })
 
     mockCallOpenRouter.mockResolvedValue(
-      '[{"job_id":"job-1","categories":["Engineering"]},{"job_id":"job-2","categories":["Marketing"]}]'
+      '[{"job_id":"job-1","categories":["engineering"]},{"job_id":"job-2","categories":["marketing"]}]'
     )
 
     const result = await (categorizeJobsTask as any).run({ jobIds: ['job-1', 'job-2'] })
 
     expect(result.categorized).toBe(2)
-    expect(mockUpdate).toHaveBeenCalledWith({ categories: ['Engineering'] })
-    expect(mockUpdate).toHaveBeenCalledWith({ categories: ['Marketing'] })
+    expect(mockUpdate).toHaveBeenCalledWith({ categories: ['engineering'] })
+    expect(mockUpdate).toHaveBeenCalledWith({ categories: ['marketing'] })
   })
 
   it('falls back to ["Other"] and captures Sentry warning when per-job LLM fails', async () => {
@@ -126,7 +134,7 @@ describe('categorizeJobsTask', () => {
         extra: expect.objectContaining({ jobId: 'job-1' }),
       })
     )
-    expect(mockUpdate).toHaveBeenCalledWith({ categories: ['Other'] })
+    expect(mockUpdate).toHaveBeenCalledWith({ categories: ['more'] })
     expect(mockCaptureMessage).toHaveBeenCalledWith(
       'Job categorized as Other',
       expect.objectContaining({ level: 'warning' })

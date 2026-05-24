@@ -3,15 +3,11 @@ import { task } from '@trigger.dev/sdk'
 import * as Sentry from '@sentry/node'
 import { createServiceClient } from '@/lib/supabase/service'
 import { callOpenRouter } from './lib/evaluate'
+import { ROLE_TAXONOMY } from '@/lib/roles'
 
-const TAXONOMY = [
-  'Engineering', 'AI & Data', 'Cybersecurity', 'Product', 'Design & UX',
-  'Sales', 'Business', 'Marketing', 'Finance', 'Quantitative Finance',
-  'Customer Success', 'People & HR', 'Legal & Compliance',
-  'Strategy & Operations', 'Consulting', 'Hardware & Embedded', 'Other',
-] as const
-
-type TaxonomyCategory = typeof TAXONOMY[number]
+const TAXONOMY: readonly string[] = ROLE_TAXONOMY.map(c => c.id)
+// → ['engineering','product','sales','business','marketing','finance','customer','people-legal','more']
+type TaxonomyCategory = string
 
 const SYSTEM_PROMPT = `You are a job categorization assistant. Your goal is high recall — it is always worse to miss a relevant category than to assign an extra one.
 
@@ -24,17 +20,15 @@ Rules:
 - Respond ONLY with a JSON array: [{ "job_id": "...", "categories": ["..."] }, ...]
 
 Approved taxonomy:
-Engineering, AI & Data, Cybersecurity, Product, Design & UX, Sales, Business, Marketing, Finance, Quantitative Finance, Customer Success, People & HR, Legal & Compliance, Strategy & Operations, Consulting, Hardware & Embedded, Other
+engineering, product, sales, business, marketing, finance, customer, people-legal, more
 
 Examples:
-- "Senior Full Stack Engineer" → ["Engineering"]
-- "Head of Product" → ["Product"]
-- "VP of Engineering" → ["Engineering"]
-- "ML Platform Engineer" → ["Engineering", "AI & Data"]
-- "Platform Security Engineer" → ["Engineering", "Cybersecurity"]
-- "Quant Researcher" → ["Quantitative Finance"]
-- "Growth Marketing Manager" → ["Marketing"]
-- "Chief of Staff" → ["Strategy & Operations", "Business"]`
+- "Senior Full Stack Engineer" → ["engineering"]
+- "Head of Product" → ["product"]
+- "ML Platform Engineer" → ["engineering"]
+- "Growth Marketing Manager" → ["marketing"]
+- "Chief of Staff" → ["more"]
+- "FP&A Analyst" → ["finance"]`
 
 type JobRow = { id: string; title: string; industry: string | null; description: string | null }
 type BatchResult = Array<{ job_id: string; categories: string[] }>
@@ -49,9 +43,9 @@ export function parseBatchResponse(raw: string): BatchResult {
 
 export function validateCategories(cats: string[]): TaxonomyCategory[] {
   const valid = cats
-    .filter((c): c is TaxonomyCategory => TAXONOMY.includes(c as TaxonomyCategory))
+    .filter(c => TAXONOMY.includes(c))
     .slice(0, 3)
-  return valid.length > 0 ? valid : ['Other']
+  return valid.length > 0 ? valid : ['more']
 }
 
 function buildBatchPrompt(jobs: JobRow[]): string {
@@ -108,13 +102,13 @@ export const categorizeJobsTask = task({
               level: 'warning',
               extra: { jobId: job.id, title: job.title, industry: job.industry },
             })
-            results.push({ job_id: job.id, categories: ['Other'] })
+            results.push({ job_id: job.id, categories: ['more'] })
           }
         }
       }
 
       for (const { job_id, categories } of results) {
-        if (categories.length === 1 && categories[0] === 'Other') {
+        if (categories.length === 1 && categories[0] === 'more') {
           const job = batch.find(j => j.id === job_id)
           Sentry.captureMessage('Job categorized as Other', {
             level: 'warning',

@@ -1,10 +1,12 @@
 // src/trigger/lib/pre-filter.ts
 import type { RoleSelection } from '@/lib/supabase/types'
+import { ROLE_TAXONOMY } from '@/lib/roles'
 
 export interface FilterableJob {
   title: string
   company: string
   industry: string | null
+  categories: string[] | null
 }
 
 export interface UserPrefsForFilter {
@@ -13,18 +15,30 @@ export interface UserPrefsForFilter {
   excluded_industries: string[]
 }
 
+export function deriveTargetCategories(roles: RoleSelection[]): string[] {
+  const selected = new Set(roles.map(r => r.role))
+  const categories = new Set<string>()
+  for (const cat of ROLE_TAXONOMY) {
+    for (const group of cat.groups) {
+      if (group.roles.some(r => selected.has(r))) {
+        categories.add(cat.id)
+        break
+      }
+    }
+  }
+  return [...categories]
+}
+
 export function filterJobsForUser<T extends FilterableJob>(
   jobs: T[],
   prefs: UserPrefsForFilter
 ): T[] {
   return jobs.filter(job => {
-    // 1. Title keyword match — skip entirely if user has no target roles
-    if (prefs.target_roles.length > 0) {
-      const titleLower = job.title.toLowerCase()
-      const matchesRole = prefs.target_roles.some(r =>
-        titleLower.includes(r.role.toLowerCase())
-      )
-      if (!matchesRole) return false
+    // 1. Category overlap — fail-open when no target categories or null job categories
+    const targetCategories = deriveTargetCategories(prefs.target_roles)
+    if (targetCategories.length > 0 && job.categories && job.categories.length > 0) {
+      const hasOverlap = job.categories.some(c => targetCategories.includes(c))
+      if (!hasOverlap) return false
     }
 
     // 2. Company exclusion
