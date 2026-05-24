@@ -19,6 +19,7 @@ export type Database = {
         Row: {
           id: string
           cv_text: string | null
+          cv_summary: Json | null
           threshold: number
           notifications_enabled: boolean
           onboarding_completed: boolean
@@ -32,6 +33,7 @@ export type Database = {
         Insert: {
           id: string
           cv_text?: string | null
+          cv_summary?: Json | null
           threshold?: number
           notifications_enabled?: boolean
           onboarding_completed?: boolean
@@ -45,6 +47,7 @@ export type Database = {
         Update: {
           id?: string
           cv_text?: string | null
+          cv_summary?: Json | null
           threshold?: number
           notifications_enabled?: boolean
           onboarding_completed?: boolean

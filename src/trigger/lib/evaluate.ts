@@ -1,4 +1,5 @@
 import { scoreResponseSchema, type ScoreResponse } from './score-schema'
+import type { CvSummary } from '../summarize-cv'
 
 interface EvaluationInput {
   jobTitle: string
@@ -7,12 +8,38 @@ interface EvaluationInput {
   jobIndustry: string | null
   jobDescription: string
   cvText: string
+  cvSummary?: CvSummary | null
   targetRoles: { role: string }[]
   targetIndustries: string[]
   locations: string[]
   excludedCompanies: string[]
   excludedIndustries: string[]
   yearsExperience: number
+}
+
+function formatCvSummary(summary: CvSummary): string {
+  const lines = [
+    `Name: ${summary.name}`,
+    `Current Role: ${summary.current_title} (${summary.seniority} level)`,
+    `Skills: ${summary.skills.slice(0, 15).join(', ')}`,
+  ]
+
+  if (summary.experience.length > 0) {
+    lines.push('Recent Experience:')
+    summary.experience.forEach(e => lines.push(`- ${e.title} at ${e.company} (${e.duration})`))
+  }
+
+  if (summary.education.length > 0) {
+    lines.push('Education:')
+    summary.education.forEach(e => lines.push(`- ${e.degree}, ${e.institution} (${e.year})`))
+  }
+
+  if (summary.key_achievements.length > 0) {
+    lines.push('Key Achievements:')
+    summary.key_achievements.forEach(a => lines.push(`- ${a}`))
+  }
+
+  return lines.join('\n')
 }
 
 export function buildEvaluationPrompt(input: EvaluationInput): string {
@@ -23,6 +50,7 @@ export function buildEvaluationPrompt(input: EvaluationInput): string {
     jobIndustry,
     jobDescription,
     cvText,
+    cvSummary,
     targetRoles,
     targetIndustries,
     locations,
@@ -40,10 +68,13 @@ export function buildEvaluationPrompt(input: EvaluationInput): string {
     : yearsExperience === 10 ? '10+ years'
     : `${yearsExperience}+ years`
 
+  const candidateSection = cvSummary
+    ? `## Candidate Profile\n${formatCvSummary(cvSummary)}`
+    : `## Candidate CV\n${cvText}`
+
   return `You are a career advisor evaluating how well a job matches a candidate's profile.
 
-## Candidate CV
-${cvText}
+${candidateSection}
 
 ## Candidate Preferences
 - Target roles: ${roleNames}
