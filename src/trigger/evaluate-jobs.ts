@@ -6,6 +6,7 @@ import type { RoleSelection } from '@/lib/supabase/types'
 import { buildEvaluationPrompt, callOpenRouter, parseEvaluationResponse } from './lib/evaluate'
 import { filterJobsForUser } from './lib/pre-filter'
 import { sendInstantAlertTask } from './send-instant-alert'
+import type { CvSummary } from './summarize-cv'
 
 interface EvaluateJobsPayload {
   jobIds?: string[]
@@ -46,7 +47,7 @@ export const evaluateJobsTask = task({
 
     let profilesQuery = supabase
       .from('profiles')
-      .select('id, cv_text, years_experience, instant_alert_threshold')
+      .select('id, cv_text, cv_summary, years_experience, instant_alert_threshold')
       .eq('onboarding_completed', true)
 
     if (userIds && userIds.length > 0) {
@@ -93,6 +94,7 @@ export const evaluateJobsTask = task({
             jobIndustry: job.industry ?? null,
             jobDescription: job.description ?? '',
             cvText: user.cv_text ?? '',
+            cvSummary: user.cv_summary as CvSummary | null,
             targetRoles: (prefs?.target_roles ?? []) as RoleSelection[],
             targetIndustries: (prefs?.target_industries ?? []) as string[],
             locations: prefs?.locations ?? [],
