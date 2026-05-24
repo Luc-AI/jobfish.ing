@@ -1,30 +1,17 @@
 import { task } from '@trigger.dev/sdk'
-import { z } from 'zod'
 import { createServiceClient } from '@/lib/supabase/service'
 import { callOpenRouter } from './lib/evaluate'
+import { cvSummarySchema } from '@/lib/types/cv-summary'
 
-const cvSummarySchema = z.object({
-  name: z.string(),
-  current_title: z.string(),
-  seniority: z.enum(['junior', 'mid', 'senior', 'lead', 'principal', 'director', 'executive']),
-  skills: z.array(z.string()),
-  experience: z.array(z.object({
-    title: z.string(),
-    company: z.string(),
-    duration: z.string(),
-  })),
-  education: z.array(z.object({
-    degree: z.string(),
-    institution: z.string(),
-    year: z.string(),
-  })),
-  key_achievements: z.array(z.string()),
-})
-
-export type CvSummary = z.infer<typeof cvSummarySchema>
+export type { CvSummary } from '@/lib/types/cv-summary'
 
 function buildSummarizationPrompt(cvText: string): string {
-  return `Extract key information from this CV and return structured JSON.
+  return `Extract key professional information from this CV and return structured JSON.
+
+Important rules:
+- Include ONLY professional/work-related information
+- Do NOT include: phone numbers, email addresses, home addresses, birthdays, LinkedIn URLs, social media handles, or any other personal contact details
+- Focus on career history, skills, and accomplishments
 
 Return ONLY valid JSON with exactly these fields:
 - name: full name (string)
