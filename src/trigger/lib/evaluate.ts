@@ -1,5 +1,5 @@
 import { scoreResponseSchema, type ScoreResponse } from './score-schema'
-import type { CvSummary } from '../summarize-cv'
+import type { CvSummary } from '@/lib/types/cv-summary'
 
 interface EvaluationInput {
   jobTitle: string

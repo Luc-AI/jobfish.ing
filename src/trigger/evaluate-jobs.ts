@@ -6,7 +6,7 @@ import type { RoleSelection } from '@/lib/supabase/types'
 import { buildEvaluationPrompt, callOpenRouter, parseEvaluationResponse } from './lib/evaluate'
 import { filterJobsForUser } from './lib/pre-filter'
 import { sendInstantAlertTask } from './send-instant-alert'
-import type { CvSummary } from './summarize-cv'
+import type { CvSummary } from '@/lib/types/cv-summary'
 
 interface EvaluateJobsPayload {
   jobIds?: string[]
