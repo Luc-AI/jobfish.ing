@@ -20,6 +20,7 @@ Rules:
 - Assign at most 3 categories
 - If a job could plausibly belong to multiple categories, include all relevant ones up to the limit
 - Only use categories from the approved taxonomy — never invent new ones
+- Use the job title, industry, and description together to determine the best categories — industry is a strong signal when the title is ambiguous
 - Respond ONLY with a JSON array: [{ "job_id": "...", "categories": ["..."] }, ...]
 
 Approved taxonomy:
