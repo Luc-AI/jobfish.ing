@@ -28,7 +28,7 @@ export const evaluateJobsTask = task({
 
     let jobsQuery = supabase
       .from('jobs')
-      .select('id, title, company, location, description, industry')
+      .select('id, title, company, location, description, industry, categories')
       .eq('is_active', true)
 
     if (jobIds && jobIds.length > 0) {

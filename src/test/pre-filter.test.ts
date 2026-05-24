@@ -1,11 +1,17 @@
 // src/test/pre-filter.test.ts
 import { describe, it, expect } from 'vitest'
-import { filterJobsForUser, type FilterableJob, type UserPrefsForFilter } from '@/trigger/lib/pre-filter'
+import {
+  filterJobsForUser,
+  deriveTargetCategories,
+  type FilterableJob,
+  type UserPrefsForFilter,
+} from '@/trigger/lib/pre-filter'
 
 const makeJob = (overrides: Partial<FilterableJob> = {}): FilterableJob => ({
   title: 'Senior UX Designer',
   company: 'Logitech',
   industry: 'IT & Software',
+  categories: ['product'],
   ...overrides,
 })
 
@@ -15,32 +21,97 @@ const emptyPrefs: UserPrefsForFilter = {
   excluded_industries: [],
 }
 
-describe('filterJobsForUser — title keyword match', () => {
-  it('passes job when title matches a target role (case-insensitive)', () => {
-    const prefs: UserPrefsForFilter = { ...emptyPrefs, target_roles: [{ role: 'UX Designer' }] }
-    expect(filterJobsForUser([makeJob()], prefs)).toHaveLength(1)
+describe('deriveTargetCategories', () => {
+  it('returns ["product"] for Product Manager', () => {
+    expect(deriveTargetCategories([{ role: 'Product Manager' }])).toEqual(['product'])
   })
 
-  it('blocks job when title does not match any target role', () => {
-    const prefs: UserPrefsForFilter = { ...emptyPrefs, target_roles: [{ role: 'Data Engineer' }] }
-    expect(filterJobsForUser([makeJob()], prefs)).toHaveLength(0)
+  it('returns ["engineering"] for Machine Learning Engineer', () => {
+    expect(deriveTargetCategories([{ role: 'Machine Learning Engineer' }])).toEqual(['engineering'])
   })
 
-  it('matches case-insensitively', () => {
-    const prefs: UserPrefsForFilter = { ...emptyPrefs, target_roles: [{ role: 'ux designer' }] }
-    expect(filterJobsForUser([makeJob({ title: 'Senior UX Designer' })], prefs)).toHaveLength(1)
+  it('returns [] for empty roles array', () => {
+    expect(deriveTargetCategories([])).toEqual([])
   })
 
-  it('passes all jobs when target_roles is empty (no keyword filter)', () => {
-    expect(filterJobsForUser([makeJob(), makeJob({ title: 'Data Engineer' })], emptyPrefs)).toHaveLength(2)
+  it('returns multiple categories when roles span categories', () => {
+    const result = deriveTargetCategories([
+      { role: 'Product Manager' },
+      { role: 'Software Engineer' },
+    ])
+    expect(result).toContain('product')
+    expect(result).toContain('engineering')
+    expect(result).toHaveLength(2)
   })
 
-  it('matches on any of multiple target roles (OR logic)', () => {
+  it('deduplicates categories when multiple roles map to the same category', () => {
+    const result = deriveTargetCategories([
+      { role: 'Product Manager' },
+      { role: 'Product Designer' },
+    ])
+    expect(result).toEqual(['product'])
+  })
+
+  it('ignores unrecognised roles silently', () => {
+    expect(deriveTargetCategories([{ role: 'Wizard of Cheese' }])).toEqual([])
+  })
+})
+
+describe('filterJobsForUser — category overlap', () => {
+  it('passes job when categories overlap with target roles', () => {
     const prefs: UserPrefsForFilter = {
       ...emptyPrefs,
-      target_roles: [{ role: 'Data Engineer' }, { role: 'UX Designer' }],
+      target_roles: [{ role: 'Product Manager' }],
     }
-    expect(filterJobsForUser([makeJob()], prefs)).toHaveLength(1)
+    const job = makeJob({ categories: ['product'] })
+    expect(filterJobsForUser([job], prefs)).toHaveLength(1)
+  })
+
+  it('blocks job when categories do not overlap with target roles', () => {
+    const prefs: UserPrefsForFilter = {
+      ...emptyPrefs,
+      target_roles: [{ role: 'Product Manager' }],
+    }
+    const job = makeJob({ categories: ['marketing'] })
+    expect(filterJobsForUser([job], prefs)).toHaveLength(0)
+  })
+
+  it('fail-open: passes job when categories is null, regardless of target roles', () => {
+    const prefs: UserPrefsForFilter = {
+      ...emptyPrefs,
+      target_roles: [{ role: 'Product Manager' }],
+    }
+    const job = makeJob({ categories: null })
+    expect(filterJobsForUser([job], prefs)).toHaveLength(1)
+  })
+
+  it('fail-open: passes job when categories is empty array, regardless of target roles', () => {
+    const prefs: UserPrefsForFilter = {
+      ...emptyPrefs,
+      target_roles: [{ role: 'Product Manager' }],
+    }
+    const job = makeJob({ categories: [] })
+    expect(filterJobsForUser([job], prefs)).toHaveLength(1)
+  })
+
+  it('fail-open: passes all jobs when target_roles is empty', () => {
+    const jobs = [
+      makeJob({ categories: ['product'] }),
+      makeJob({ categories: ['engineering'] }),
+      makeJob({ categories: null }),
+    ]
+    expect(filterJobsForUser(jobs, emptyPrefs)).toHaveLength(3)
+  })
+
+  it('passes job matching any of multiple target role categories (OR logic)', () => {
+    const prefs: UserPrefsForFilter = {
+      ...emptyPrefs,
+      target_roles: [{ role: 'Product Manager' }, { role: 'Software Engineer' }],
+    }
+    const engineeringJob = makeJob({ categories: ['engineering'] })
+    const productJob = makeJob({ categories: ['product'] })
+    const marketingJob = makeJob({ categories: ['marketing'] })
+    expect(filterJobsForUser([engineeringJob, productJob, marketingJob], prefs)).toHaveLength(2)
   })
 })
 
@@ -68,7 +139,10 @@ describe('filterJobsForUser — industry exclusion', () => {
   })
 
   it('always passes jobs with industry = "Other"', () => {
-    const prefs: UserPrefsForFilter = { ...emptyPrefs, excluded_industries: ['IT & Software', 'Other'] }
+    const prefs: UserPrefsForFilter = {
+      ...emptyPrefs,
+      excluded_industries: ['IT & Software', 'Other'],
+    }
     expect(filterJobsForUser([makeJob({ industry: 'Other' })], prefs)).toHaveLength(1)
   })
 
@@ -86,17 +160,27 @@ describe('filterJobsForUser — industry exclusion', () => {
 describe('filterJobsForUser — combined conditions', () => {
   it('applies all three conditions together', () => {
     const prefs: UserPrefsForFilter = {
-      target_roles: [{ role: 'UX Designer' }],
+      target_roles: [{ role: 'Product Designer' }],
       excluded_companies: ['Adecco'],
       excluded_industries: ['Healthcare & Pharma'],
     }
     const jobs = [
-      makeJob({ title: 'UX Designer', company: 'Logitech', industry: 'IT & Software' }),  // PASS
-      makeJob({ title: 'Data Engineer', company: 'Logitech', industry: 'IT & Software' }), // FAIL title
-      makeJob({ title: 'UX Designer', company: 'Adecco', industry: 'IT & Software' }),     // FAIL company
-      makeJob({ title: 'UX Designer', company: 'Logitech', industry: 'Healthcare & Pharma' }), // FAIL industry
+      makeJob({ categories: ['product'], company: 'Logitech', industry: 'IT & Software' }),           // PASS
+      makeJob({ categories: ['engineering'], company: 'Logitech', industry: 'IT & Software' }),        // FAIL category
+      makeJob({ categories: ['product'], company: 'Adecco', industry: 'IT & Software' }),              // FAIL company
+      makeJob({ categories: ['product'], company: 'Logitech', industry: 'Healthcare & Pharma' }),      // FAIL industry
     ]
     expect(filterJobsForUser(jobs, prefs)).toHaveLength(1)
     expect(filterJobsForUser(jobs, prefs)[0].company).toBe('Logitech')
+  })
+
+  it('fail-open: null categories job passes category check even with exclusions active', () => {
+    const prefs: UserPrefsForFilter = {
+      target_roles: [{ role: 'Product Manager' }],
+      excluded_companies: ['Adecco'],
+      excluded_industries: [],
+    }
+    const job = makeJob({ categories: null, company: 'Logitech' })
+    expect(filterJobsForUser([job], prefs)).toHaveLength(1)
   })
 })
