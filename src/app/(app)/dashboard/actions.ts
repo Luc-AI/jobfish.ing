@@ -23,6 +23,14 @@ export async function markJobReadAction(jobId: string) {
   await markJobRead(user.id, jobId)
 }
 
+export async function passJobAction(jobId: string) {
+  return upsertJobAction(jobId, 'dismissed')
+}
+
+export async function saveJobAction(jobId: string) {
+  return upsertJobAction(jobId, 'saved')
+}
+
 export async function deleteJobAction(jobId: string) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()

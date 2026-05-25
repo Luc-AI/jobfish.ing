@@ -17,7 +17,8 @@ import { AppliedTracker, type TrackerJob } from '@/components/features/applied-t
 import { DismissedList, type DismissedJob } from '@/components/features/dismissed-list'
 import { Button } from '@/components/ui/button'
 import {
-  upsertJobAction,
+  passJobAction,
+  saveJobAction,
   markJobReadAction,
   deleteJobAction,
 } from './actions'
@@ -106,7 +107,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   }))
 
   return (
-    <div style={{ maxWidth: 816, margin: '0 auto', padding: '32px 16px' }}>
+    <div style={{ maxWidth: 816, margin: '0 auto', padding: '32px 16px', overflowX: 'hidden' }}>
       <div className="flex items-start justify-between mb-6">
         <div>
           <h1
@@ -143,8 +144,8 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         <div className={tab === 'all' ? '' : 'mt-6'}>
           <FeedClient
             items={aboveThreshold}
-            onPass={(jobId) => upsertJobAction(jobId, 'dismissed')}
-            onSave={(jobId) => upsertJobAction(jobId, 'saved')}
+            onPass={passJobAction}
+            onSave={saveJobAction}
             onMarkRead={markJobReadAction}
             showSections={tab === 'all'}
           />
@@ -153,8 +154,8 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
             <LowConfidenceFold count={belowThreshold.length} threshold={threshold}>
               <FeedClient
                 items={belowThreshold}
-                onPass={(jobId) => upsertJobAction(jobId, 'dismissed')}
-                onSave={(jobId) => upsertJobAction(jobId, 'saved')}
+                onPass={passJobAction}
+                onSave={saveJobAction}
                 onMarkRead={markJobReadAction}
                 showSections={false}
               />
@@ -173,7 +174,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         <div className="mt-6">
           <DismissedList
             jobs={dismissedJobs}
-            onRestore={(jobId) => { void deleteJobAction(jobId) }}
+            onRestore={deleteJobAction}
           />
         </div>
       )}

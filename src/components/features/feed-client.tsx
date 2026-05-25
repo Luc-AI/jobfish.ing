@@ -34,7 +34,7 @@ export function FeedClient({
   }
 
   function makeRow(item: FeedItem) {
-    const status = ((item.user_job_actions as { status?: string } | null)?.status ?? 'new') as 'new' | 'saved' | 'applied' | 'dismissed'
+    const status = (item.user_job_actions?.status ?? 'new') as 'new' | 'saved' | 'applied' | 'dismissed'
     return (
       <JobLogRow
         id={item.id}
@@ -49,7 +49,7 @@ export function FeedClient({
         isUnread={item.is_unread}
         notifiedAt={item.notified_at}
         status={status}
-        appliedAt={(item.user_job_actions as { applied_at?: string | null } | null)?.applied_at}
+        appliedAt={item.user_job_actions?.applied_at}
         onPass={() => {
           setDismissedIds((prev: Set<string>) => new Set([...prev, item.job_id]))
           void onPass(item.job_id)
