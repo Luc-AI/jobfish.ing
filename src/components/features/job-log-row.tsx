@@ -21,6 +21,7 @@ interface JobLogRowProps {
   appliedAt?: string | null
   onPass: () => void
   onSave: () => void
+  onDetails?: () => void
 }
 
 function formatRelativeTime(iso: string): string {
@@ -44,6 +45,7 @@ export function JobLogRow({
   appliedAt,
   onPass,
   onSave,
+  onDetails,
 }: JobLogRowProps) {
   return (
     <div
@@ -100,11 +102,13 @@ export function JobLogRow({
             Save
           </Button>
           <div className="flex-1" />
-          <a href={url} target="_blank" rel="noopener noreferrer">
-            <Button size="sm" className="h-8">
-              Details
-            </Button>
-          </a>
+          {onDetails ? (
+            <Button size="sm" className="h-8" onClick={onDetails}>Details</Button>
+          ) : (
+            <a href={url} target="_blank" rel="noopener noreferrer">
+              <Button size="sm" className="h-8">Details</Button>
+            </a>
+          )}
         </div>
       </div>
 

@@ -26,14 +26,14 @@ export function JobDetailHeader({ job, score, action, onAction }: JobDetailHeade
         await onAction(job.id, status)
         const successMessages = {
           saved: 'Job saved',
-          hidden: 'Job hidden',
+          dismissed: 'Job dismissed',
           applied: 'Marked as applied — good luck!',
         }
         toast.success(successMessages[status])
       } catch {
         const errorMessages = {
           saved: 'Failed to save job',
-          hidden: 'Failed to hide job',
+          dismissed: 'Failed to dismiss job',
           applied: 'Failed to record application',
         }
         toast.error(errorMessages[status])

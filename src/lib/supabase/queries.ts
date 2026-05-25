@@ -316,6 +316,8 @@ export interface AppliedJob {
   job_id: string
   title: string
   company: string
+  location: string | null
+  url: string
   applied_at: string | null
   score: number | null
 }
@@ -328,7 +330,7 @@ export async function getAppliedJobs(userId: string): Promise<{ data: AppliedJob
     .select(`
       job_id,
       applied_at,
-      jobs!inner (id, title, company),
+      jobs!inner (id, title, company, location, url),
       job_evaluations (score)
     `)
     .eq('user_id', userId)
@@ -352,6 +354,8 @@ export async function getAppliedJobs(userId: string): Promise<{ data: AppliedJob
       job_id: row.job_id,
       title: (job as { title: string } | null)?.title ?? '',
       company: (job as { company: string } | null)?.company ?? '',
+      location: (job as { location: string | null } | null)?.location ?? null,
+      url: (job as { url: string } | null)?.url ?? '',
       applied_at: row.applied_at,
       score: (evaluation as { score: number } | null)?.score ?? null,
     }
