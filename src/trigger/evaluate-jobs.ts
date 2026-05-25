@@ -8,6 +8,36 @@ import { filterJobsForUser } from './lib/pre-filter'
 import { sendInstantAlertTask } from './send-instant-alert'
 import type { CvSummary } from '@/lib/types/cv-summary'
 
+function deriveChips(detailed_reasoning: { strengths: string[]; concerns: string[]; red_flags: string[] }): Array<{ tone: 'pos' | 'warn' | 'neg'; label: string }> {
+  const firstThreeWords = (s: string) => s.trim().split(/\s+/).slice(0, 3).join(' ')
+
+  const chips: Array<{ tone: 'pos' | 'warn' | 'neg'; label: string }> = []
+
+  const strengths = detailed_reasoning.strengths.slice(0, 2)
+  for (const s of strengths) chips.push({ tone: 'pos', label: firstThreeWords(s) })
+
+  const remaining = 3 - chips.length
+  const concerns = detailed_reasoning.concerns.slice(0, remaining)
+  for (const c of concerns) chips.push({ tone: 'warn', label: firstThreeWords(c) })
+
+  const remaining2 = 3 - chips.length
+  const redFlags = detailed_reasoning.red_flags.slice(0, remaining2)
+  for (const r of redFlags) chips.push({ tone: 'neg', label: firstThreeWords(r) })
+
+  const fallbacks: Array<{ tone: 'pos' | 'warn' | 'neg'; label: string }> = [
+    { tone: 'pos', label: 'Good overall fit' },
+    { tone: 'warn', label: 'Review carefully' },
+    { tone: 'neg', label: 'Significant concerns' },
+  ]
+
+  let fallbackIndex = 0
+  while (chips.length < 3) {
+    chips.push(fallbacks[fallbackIndex++])
+  }
+
+  return chips
+}
+
 interface EvaluateJobsPayload {
   jobIds?: string[]
   userIds?: string[]
@@ -116,6 +146,7 @@ export const evaluateJobsTask = task({
                 reasoning,
                 dimensions,
                 detailed_reasoning,
+                chips: deriveChips(detailed_reasoning),
               },
               { onConflict: 'job_id,user_id', ignoreDuplicates: true },
             )
