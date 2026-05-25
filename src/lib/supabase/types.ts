@@ -73,6 +73,8 @@ export type Database = {
           remote_preference: 'on-site' | 'hybrid' | 'remote-ok' | 'remote-solely'
           preferred_languages: string[]
           company_sizes: string[]
+          last_dashboard_visit_at: string | null
+          score_threshold: number
         }
         Insert: {
           id?: string
@@ -86,6 +88,8 @@ export type Database = {
           remote_preference?: 'on-site' | 'hybrid' | 'remote-ok' | 'remote-solely'
           preferred_languages?: string[]
           company_sizes?: string[]
+          last_dashboard_visit_at?: string | null
+          score_threshold?: number
         }
         Update: {
           id?: string
@@ -99,6 +103,8 @@ export type Database = {
           remote_preference?: 'on-site' | 'hybrid' | 'remote-ok' | 'remote-solely'
           preferred_languages?: string[]
           company_sizes?: string[]
+          last_dashboard_visit_at?: string | null
+          score_threshold?: number
         }
         Relationships: []
       }
@@ -185,6 +191,8 @@ export type Database = {
           detailed_reasoning: Json | null
           notified_at: string | null
           instant_alerted_at: string | null
+          read_at: string | null
+          chips: Json | null
           created_at: string
         }
         Insert: {
@@ -197,6 +205,8 @@ export type Database = {
           detailed_reasoning?: Json | null
           notified_at?: string | null
           instant_alerted_at?: string | null
+          read_at?: string | null
+          chips?: Json | null
           created_at?: string
         }
         Update: {
@@ -209,6 +219,8 @@ export type Database = {
           detailed_reasoning?: Json | null
           notified_at?: string | null
           instant_alerted_at?: string | null
+          read_at?: string | null
+          chips?: Json | null
           created_at?: string
         }
         Relationships: [
@@ -292,7 +304,7 @@ export type Database = {
     Views: Record<string, never>
     Functions: Record<string, never>
     Enums: {
-      job_action_status: 'saved' | 'hidden' | 'applied'
+      job_action_status: 'saved' | 'dismissed' | 'applied'
     }
     CompositeTypes: Record<string, never>
   }
