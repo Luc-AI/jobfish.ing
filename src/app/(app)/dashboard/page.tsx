@@ -1,34 +1,17 @@
 import { redirect } from 'next/navigation'
-import Link from 'next/link'
+import { Sparkles } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
-import { getJobFeed, type FeedSort } from '@/lib/supabase/queries'
-import { JobFeed } from '@/components/features/job-feed'
-import { upsertJobAction } from './actions'
-import type { JobEvaluation } from '@/components/features/job-card'
+import { getJobFeed, getPreferences, upsertLastVisit, type FeedTab, type FeedItem } from '@/lib/supabase/queries'
+import { LogTab } from '@/components/features/log-tab'
+import { LowConfidenceFold } from '@/components/features/low-confidence-fold'
 import { Button } from '@/components/ui/button'
 
-const SORT_LABELS: Record<FeedSort, string> = {
-  fresh:    'Freshest first',
-  best:     'Best matches',
-  balanced: 'Balanced mix',
-  archived: 'Archived',
-}
-
-const SORT_COPY: Record<FeedSort, string> = {
-  fresh:    'Newest listings first — score still filters the noise.',
-  best:     'A strong fit from last week still outranks a weaker one posted today.',
-  balanced: 'Fit and freshness, both in the mix.',
-  archived: 'Jobs posted more than 30 days ago, oldest finds last.',
-}
-
-const SORT_ORDER: FeedSort[] = ['fresh', 'best', 'balanced', 'archived']
-
 interface DashboardPageProps {
-  searchParams: Promise<{ page?: string; sort?: string }>
+  searchParams: Promise<{ tab?: string; page?: string }>
 }
 
-function isValidSort(s: string | undefined): s is FeedSort {
-  return s === 'fresh' || s === 'best' || s === 'balanced' || s === 'archived'
+function isValidTab(s: string | undefined): s is FeedTab {
+  return s === 'all' || s === 'saved' || s === 'applied' || s === 'dismissed'
 }
 
 export default async function DashboardPage({ searchParams }: DashboardPageProps) {
@@ -37,61 +20,110 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   if (!user) redirect('/login')
 
   const params = await searchParams
+  const tab: FeedTab = isValidTab(params.tab) ? params.tab : 'all'
   const page = Math.max(1, Number(params.page ?? 1))
-  const sort: FeedSort = isValidSort(params.sort) ? params.sort : 'fresh'
   const pageSize = 20
 
-  const { data: evaluations, error: feedError } = await getJobFeed(user.id, page, pageSize, true, sort)
-  if (feedError) console.error('[dashboard] getJobFeed error:', feedError)
+  const [feedResult, prefsResult] = await Promise.all([
+    getJobFeed(user.id, tab, page, pageSize),
+    getPreferences(user.id),
+  ])
 
-  const hasMore = (evaluations?.length ?? 0) === pageSize
+  const feed: FeedItem[] = feedResult.data ?? []
+  const threshold = prefsResult.data?.score_threshold ?? 7.0
 
-  function sortHref(s: FeedSort) {
-    return s === 'fresh' ? '/dashboard' : `/dashboard?sort=${s}`
+  const unreadCount = tab === 'all' ? feed.filter(f => f.is_unread).length : 0
+  const totalCount = feed.length
+
+  const aboveThreshold = tab === 'all' ? feed.filter(f => f.score >= threshold) : feed
+  const belowThreshold = tab === 'all' ? feed.filter(f => f.score < threshold) : []
+
+  const [savedResult, appliedResult, dismissedResult] = await Promise.all([
+    supabase.from('user_job_actions').select('*', { count: 'exact', head: true }).eq('user_id', user.id).eq('status', 'saved'),
+    supabase.from('user_job_actions').select('*', { count: 'exact', head: true }).eq('user_id', user.id).eq('status', 'applied'),
+    supabase.from('user_job_actions').select('*', { count: 'exact', head: true }).eq('user_id', user.id).eq('status', 'dismissed'),
+  ])
+
+  const tabs = [
+    { value: 'all', label: 'All', count: totalCount },
+    { value: 'saved', label: 'Saved', count: savedResult.count ?? 0 },
+    { value: 'applied', label: 'Applied', count: appliedResult.count ?? 0 },
+    { value: 'dismissed', label: 'Dismissed', count: dismissedResult.count ?? 0 },
+  ]
+
+  // Update last visit timestamp after computing unread counts
+  if (tab === 'all') {
+    await upsertLastVisit(user.id)
   }
 
-  function pageHref(p: number) {
-    const base = sort === 'fresh' ? '/dashboard' : `/dashboard?sort=${sort}`
-    return p === 1 ? base : `${base}${sort === 'fresh' ? '?' : '&'}page=${p}`
+  const subtitleParts: string[] = []
+  if (tab === 'all' && unreadCount > 0) {
+    subtitleParts.push(`${unreadCount} new since your last visit`)
+  }
+  if (tab === 'all') {
+    subtitleParts.push(`${totalCount} total this week`)
   }
 
   return (
-    <div className="px-4 py-6 md:px-8 md:py-8 w-full max-w-2xl mx-auto">
-      <div className="flex items-center justify-between mb-4">
-        <h1 className="text-2xl font-bold tracking-tight">Your feed</h1>
-        <div className="flex gap-1">
-          {SORT_ORDER.map(s => (
-            <Button
-              key={s}
-              variant={sort === s ? 'default' : 'ghost'}
-              size="sm"
-              asChild
-            >
-              <Link href={sortHref(s)}>{SORT_LABELS[s]}</Link>
-            </Button>
-          ))}
-        </div>
-      </div>
-      <p className="text-sm text-muted-foreground mb-6">{SORT_COPY[sort]}</p>
-
-      <JobFeed
-        evaluations={(evaluations ?? []) as JobEvaluation[]}
-        onAction={upsertJobAction}
-      />
-
-      {(page > 1 || hasMore) && (
-        <div className="flex justify-between mt-6">
-          {page > 1 ? (
-            <Button variant="outline" asChild>
-              <Link href={pageHref(page - 1)}>← Previous</Link>
-            </Button>
-          ) : <div />}
-          {hasMore && (
-            <Button variant="outline" asChild>
-              <Link href={pageHref(page + 1)}>Next →</Link>
-            </Button>
+    <div style={{ maxWidth: 816, margin: '0 auto', padding: '32px 16px' }}>
+      <div className="flex items-start justify-between mb-6">
+        <div>
+          <h1
+            className="font-bold leading-tight"
+            style={{ fontSize: 28, letterSpacing: '-0.6px' }}
+          >
+            Your job log
+          </h1>
+          {subtitleParts.length > 0 && (
+            <p className="text-sm text-muted-foreground mt-1">
+              {subtitleParts.join(' · ')}
+            </p>
           )}
         </div>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" disabled>Search</Button>
+          <Button variant="outline" size="sm" disabled>Filters</Button>
+        </div>
+      </div>
+
+      <LogTab tabs={tabs} activeTab={tab} />
+
+      <div
+        className="flex items-center gap-1.5 mt-3 mb-6 text-muted-foreground"
+        style={{ fontSize: 12 }}
+      >
+        <Sparkles className="w-3.5 h-3.5" />
+        <span>Sorted for you · freshness × match score</span>
+      </div>
+
+      <div className="flex flex-col gap-3">
+        {aboveThreshold.map(item => (
+          <div
+            key={item.id}
+            className="p-4 border rounded-xl text-sm bg-card"
+          >
+            <span className="font-semibold">{item.jobs.title}</span>
+            <span className="text-muted-foreground ml-2">{item.jobs.company}</span>
+            <span className="text-muted-foreground ml-2 tabular-nums">{item.score.toFixed(1)}</span>
+          </div>
+        ))}
+      </div>
+
+      {tab === 'all' && belowThreshold.length > 0 && (
+        <LowConfidenceFold count={belowThreshold.length} threshold={threshold}>
+          <div className="flex flex-col gap-3">
+            {belowThreshold.map(item => (
+              <div
+                key={item.id}
+                className="p-4 border rounded-xl text-sm bg-card"
+              >
+                <span className="font-semibold">{item.jobs.title}</span>
+                <span className="text-muted-foreground ml-2">{item.jobs.company}</span>
+                <span className="text-muted-foreground ml-2 tabular-nums">{item.score.toFixed(1)}</span>
+              </div>
+            ))}
+          </div>
+        </LowConfidenceFold>
       )}
     </div>
   )
