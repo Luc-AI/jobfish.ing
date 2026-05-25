@@ -6,7 +6,7 @@ import { upsertJobAction as upsertJobActionQuery } from '@/lib/supabase/queries'
 
 export async function upsertJobAction(
   jobId: string,
-  status: 'saved' | 'hidden' | 'applied'
+  status: 'saved' | 'dismissed' | 'applied'
 ) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()

@@ -245,7 +245,7 @@ export type Database = {
           id: string
           user_id: string
           job_id: string
-          status: 'saved' | 'hidden' | 'applied'
+          status: 'saved' | 'dismissed' | 'applied'
           applied_at: string | null
           created_at: string
         }
@@ -253,7 +253,7 @@ export type Database = {
           id?: string
           user_id: string
           job_id: string
-          status: 'saved' | 'hidden' | 'applied'
+          status: 'saved' | 'dismissed' | 'applied'
           applied_at?: string | null
           created_at?: string
         }
@@ -261,7 +261,7 @@ export type Database = {
           id?: string
           user_id?: string
           job_id?: string
-          status?: 'saved' | 'hidden' | 'applied'
+          status?: 'saved' | 'dismissed' | 'applied'
           applied_at?: string | null
           created_at?: string
         }

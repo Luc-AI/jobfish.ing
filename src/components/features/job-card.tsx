@@ -36,14 +36,14 @@ export interface JobEvaluation {
     synced_at: string
   } | null
   user_job_actions?: {
-    status: 'saved' | 'hidden' | 'applied'
+    status: 'saved' | 'dismissed' | 'applied'
     applied_at: string | null
   } | null
 }
 
 interface JobCardProps {
   evaluation: JobEvaluation
-  onAction: (jobId: string, action: 'saved' | 'hidden' | 'applied') => Promise<void>
+  onAction: (jobId: string, action: 'saved' | 'dismissed' | 'applied') => Promise<void>
 }
 
 const SOURCE_LABELS: Record<string, string> = {
@@ -145,7 +145,7 @@ export function JobCard({ evaluation, onAction }: JobCardProps) {
               onClick={async () => {
                 posthog.capture('job_hidden', { job_id: job.id, score: evaluation.score })
                 try {
-                  await onAction(job.id, 'hidden')
+                  await onAction(job.id, 'dismissed')
                   toast.success('Job hidden')
                 } catch {
                   toast.error('Failed to hide job')

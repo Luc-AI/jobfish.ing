@@ -95,7 +95,7 @@ export async function getJobFeed(
       .from('user_job_actions')
       .select('job_id')
       .eq('user_id', userId)
-      .eq('status', 'hidden')
+      .eq('status', 'dismissed')
     hiddenJobIds = (hiddenActions ?? []).map(a => a.job_id)
   }
 
@@ -190,7 +190,7 @@ export interface JobDetailData {
     } | null
   } | null
   action: {
-    status: 'saved' | 'hidden' | 'applied'
+    status: 'saved' | 'dismissed' | 'applied'
     applied_at: string | null
   } | null
 }
@@ -225,7 +225,7 @@ export async function getJobDetail(userId: string, jobId: string): Promise<JobDe
     .eq('user_id', userId)
     .maybeSingle()
 
-  if (action?.status === 'hidden') return null
+  if (action?.status === 'dismissed') return null
 
   return {
     job: job as JobDetailData['job'],
@@ -238,6 +238,6 @@ export async function getJobDetail(userId: string, jobId: string): Promise<JobDe
           detailed_reasoning: evaluation.detailed_reasoning as NonNullable<JobDetailData['evaluation']>['detailed_reasoning'],
         }
       : null,
-    action: action ? { status: action.status as 'saved' | 'hidden' | 'applied', applied_at: action.applied_at } : null,
+    action: action ? { status: action.status as 'saved' | 'dismissed' | 'applied', applied_at: action.applied_at } : null,
   }
 }

@@ -65,7 +65,7 @@ describe('JobCard', () => {
     const onAction = vi.fn()
     render(<JobCard evaluation={mockEvaluation} onAction={onAction} />)
     await user.click(screen.getByRole('button', { name: /hide/i }))
-    expect(onAction).toHaveBeenCalledWith('job-1', 'hidden')
+    expect(onAction).toHaveBeenCalledWith('job-1', 'dismissed')
   })
 
   it('calls onAction with correct args when Apply is clicked', async () => {

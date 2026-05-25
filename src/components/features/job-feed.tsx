@@ -6,7 +6,7 @@ type Evaluation = Parameters<typeof JobCard>[0]['evaluation']
 
 interface JobFeedProps {
   evaluations: Evaluation[]
-  onAction: (jobId: string, action: 'saved' | 'hidden' | 'applied') => Promise<void>
+  onAction: (jobId: string, action: 'saved' | 'dismissed' | 'applied') => Promise<void>
 }
 
 export function JobFeed({ evaluations, onAction }: JobFeedProps) {
