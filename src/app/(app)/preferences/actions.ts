@@ -2,8 +2,10 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
-import { updateProfile, updatePreferences } from '@/lib/supabase/queries'
+import { updateProfile, updatePreferences, getPreferences } from '@/lib/supabase/queries'
 import type { RoleSelection } from '@/lib/supabase/types'
+import { tasks } from '@trigger.dev/sdk'
+import type { evaluateJobsTask } from '@/trigger/evaluate-jobs'
 
 export async function savePreferences(values: {
   targetRoles: RoleSelection[]
@@ -21,6 +23,12 @@ export async function savePreferences(values: {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) throw new Error('Not authenticated')
 
+  const { data: existingPrefs } = await getPreferences(user.id)
+  const prevRoles = new Set(((existingPrefs?.target_roles ?? []) as RoleSelection[]).map(r => r.role))
+  const nextRoles = new Set(values.targetRoles.map(r => r.role))
+  const rolesChanged =
+    prevRoles.size !== nextRoles.size || [...nextRoles].some(r => !prevRoles.has(r))
+
   await Promise.all([
     updateProfile(user.id, { years_experience: values.yearsExperience }),
     updatePreferences(user.id, {
@@ -33,6 +41,14 @@ export async function savePreferences(values: {
       excluded_companies: values.excludedCompanies,
     }),
   ])
+
+  if (rolesChanged) {
+    try {
+      await tasks.trigger<typeof evaluateJobsTask>('evaluate-jobs', { userIds: [user.id] })
+    } catch {
+      // Non-fatal: feed will still hide stale jobs via query-time filter
+    }
+  }
 
   revalidatePath('/preferences')
 }

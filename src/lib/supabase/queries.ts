@@ -1,6 +1,8 @@
 // src/lib/supabase/queries.ts
 import { createClient } from './server'
 import type { Database } from './types'
+import { deriveTargetCategories } from '@/trigger/lib/pre-filter'
+import type { RoleSelection } from './types'
 
 type ProfileUpdate = Database['public']['Tables']['profiles']['Update']
 type PreferencesUpdate = Database['public']['Tables']['preferences']['Update']
@@ -111,11 +113,12 @@ export async function getJobFeed(
   if (tab === 'all') {
     const { data: prefs } = await supabase
       .from('preferences')
-      .select('last_dashboard_visit_at')
+      .select('last_dashboard_visit_at, target_roles')
       .eq('user_id', userId)
       .maybeSingle()
 
     const lastVisit = prefs?.last_dashboard_visit_at ?? null
+    const targetCategories = deriveTargetCategories((prefs?.target_roles ?? []) as RoleSelection[])
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
 
     // Fetch dismissed job IDs separately to avoid PostgREST LEFT→INNER JOIN coercion
@@ -132,7 +135,7 @@ export async function getJobFeed(
       .select(`
         id, job_id, score, reasoning, dimensions, notified_at, created_at, read_at, chips,
         detailed_reasoning,
-        jobs!inner (id, title, company, location, url, source, remote_type, industry, synced_at)
+        jobs!inner (id, title, company, location, url, source, remote_type, industry, synced_at, categories)
       `)
       .eq('user_id', userId)
       .eq('jobs.is_active', true)
@@ -165,10 +168,19 @@ export async function getJobFeed(
       id: string; job_id: string; score: number; reasoning: string | null
       dimensions: unknown; notified_at: string | null; created_at: string
       read_at: string | null; chips: unknown; detailed_reasoning: unknown
-      jobs: unknown
+      jobs: { id: string; title: string; company: string; location: string | null; url: string; source: string; remote_type: string | null; industry: string | null; synced_at: string; categories: string[] | null }
     }
 
-    const items: FeedItem[] = ((evaluations ?? []) as EvalRow[]).map(e => {
+    const rawEvals = (evaluations ?? []) as EvalRow[]
+    const filteredEvals = targetCategories.length > 0
+      ? rawEvals.filter(e => {
+          const cats = e.jobs.categories
+          if (!cats || cats.length === 0) return true
+          return cats.some(c => targetCategories.includes(c))
+        })
+      : rawEvals
+
+    const items: FeedItem[] = filteredEvals.map(e => {
       const rawAction = actionsByJobId.get(e.job_id) ?? null
 
       const chips: Chip[] = Array.isArray(e.chips) && e.chips.length > 0
