@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getProfile, getPreferences } from '@/lib/supabase/queries'
 import { PreferencesForm } from '@/components/features/preferences-form'
 import { savePreferences } from './actions'
+import type { CvSummary } from '@/lib/types/cv-summary'
 
 export default async function PreferencesPage() {
   const supabase = await createClient()
@@ -15,7 +16,7 @@ export default async function PreferencesPage() {
   ])
 
   return (
-    <div className="p-8 max-w-2xl mx-auto">
+    <div className="px-4 py-8 md:px-8 max-w-2xl mx-auto">
       <div className="mb-6">
         <h1 className="text-2xl font-bold tracking-tight">Preferences</h1>
         <p className="text-sm text-muted-foreground mt-0.5">
@@ -24,8 +25,9 @@ export default async function PreferencesPage() {
       </div>
 
       <PreferencesForm
+        cvSummary={(profile?.cv_summary as CvSummary | null) ?? null}
+        hasCvText={!!profile?.cv_text}
         defaultValues={{
-          cvText: profile?.cv_text ?? '',
           targetRoles: preferences?.target_roles ?? [],
           yearsExperience: profile?.years_experience ?? 0,
           targetIndustries: preferences?.target_industries ?? [],

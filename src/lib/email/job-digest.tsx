@@ -19,6 +19,7 @@ export interface DigestJobItem {
   reasoning: string
   applyUrl: string
   source: string
+  isHotPick?: boolean
 }
 
 interface JobDigestEmailProps {
@@ -89,6 +90,11 @@ export function JobDigestEmail({ jobs }: JobDigestEmailProps) {
                   border: '1px solid #e7e5e4',
                 }}
               >
+                {job.isHotPick && (
+                  <Text style={{ fontSize: '11px', fontWeight: '700', color: '#d97706', textTransform: 'uppercase', letterSpacing: '0.05em', margin: '0 0 6px' }}>
+                    ★ Hot pick
+                  </Text>
+                )}
                 <Heading
                   style={{
                     fontSize: '18px',

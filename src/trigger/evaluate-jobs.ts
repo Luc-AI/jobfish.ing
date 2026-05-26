@@ -5,6 +5,38 @@ import { createServiceClient } from '@/lib/supabase/service'
 import type { RoleSelection } from '@/lib/supabase/types'
 import { buildEvaluationPrompt, callOpenRouter, parseEvaluationResponse } from './lib/evaluate'
 import { filterJobsForUser } from './lib/pre-filter'
+import { sendInstantAlertTask } from './send-instant-alert'
+import type { CvSummary } from '@/lib/types/cv-summary'
+
+function deriveChips(detailed_reasoning: { strengths: string[]; concerns: string[]; red_flags: string[] }): Array<{ tone: 'pos' | 'warn' | 'neg'; label: string }> {
+  const firstThreeWords = (s: string) => s.trim().split(/\s+/).slice(0, 3).join(' ')
+
+  const chips: Array<{ tone: 'pos' | 'warn' | 'neg'; label: string }> = []
+
+  const strengths = detailed_reasoning.strengths.slice(0, 2)
+  for (const s of strengths) chips.push({ tone: 'pos', label: firstThreeWords(s) })
+
+  const remaining = 3 - chips.length
+  const concerns = detailed_reasoning.concerns.slice(0, remaining)
+  for (const c of concerns) chips.push({ tone: 'warn', label: firstThreeWords(c) })
+
+  const remaining2 = 3 - chips.length
+  const redFlags = detailed_reasoning.red_flags.slice(0, remaining2)
+  for (const r of redFlags) chips.push({ tone: 'neg', label: firstThreeWords(r) })
+
+  const fallbacks: Array<{ tone: 'pos' | 'warn' | 'neg'; label: string }> = [
+    { tone: 'pos', label: 'Good overall fit' },
+    { tone: 'warn', label: 'Review carefully' },
+    { tone: 'neg', label: 'Significant concerns' },
+  ]
+
+  let fallbackIndex = 0
+  while (chips.length < 3) {
+    chips.push(fallbacks[fallbackIndex++])
+  }
+
+  return chips
+}
 
 interface EvaluateJobsPayload {
   jobIds?: string[]
@@ -26,7 +58,7 @@ export const evaluateJobsTask = task({
 
     let jobsQuery = supabase
       .from('jobs')
-      .select('id, title, company, location, description, industry')
+      .select('id, title, company, location, description, industry, categories')
       .eq('is_active', true)
 
     if (jobIds && jobIds.length > 0) {
@@ -45,7 +77,7 @@ export const evaluateJobsTask = task({
 
     let profilesQuery = supabase
       .from('profiles')
-      .select('id, cv_text, years_experience')
+      .select('id, cv_text, cv_summary, years_experience, instant_alert_threshold')
       .eq('onboarding_completed', true)
 
     if (userIds && userIds.length > 0) {
@@ -81,6 +113,8 @@ export const evaluateJobsTask = task({
         excluded_industries: (prefs?.excluded_industries ?? []) as string[],
       })
 
+      const evaluatedJobIds: string[] = []
+
       for (const job of candidateJobs) {
         try {
           const prompt = buildEvaluationPrompt({
@@ -90,6 +124,7 @@ export const evaluateJobsTask = task({
             jobIndustry: job.industry ?? null,
             jobDescription: job.description ?? '',
             cvText: user.cv_text ?? '',
+            cvSummary: user.cv_summary as CvSummary | null,
             targetRoles: (prefs?.target_roles ?? []) as RoleSelection[],
             targetIndustries: (prefs?.target_industries ?? []) as string[],
             locations: prefs?.locations ?? [],
@@ -111,16 +146,40 @@ export const evaluateJobsTask = task({
                 reasoning,
                 dimensions,
                 detailed_reasoning,
+                chips: deriveChips(detailed_reasoning),
               },
               { onConflict: 'job_id,user_id', ignoreDuplicates: true },
             )
 
+          evaluatedJobIds.push(job.id)
           evaluatedCount++
         } catch (err) {
           const msg = `job ${job.id} / user ${user.id}: ${err instanceof Error ? err.message : String(err)}`
           Sentry.captureException(err, { extra: { jobId: job.id, userId: user.id, phase } })
           console.error(`Evaluation failed for ${msg}`)
           errors.push(msg)
+        }
+      }
+
+      if (user.instant_alert_threshold != null && evaluatedJobIds.length > 0) {
+        // Query for evaluation IDs that meet the threshold for this user's freshly evaluated jobs
+        const { data: hotEvals } = await supabase
+          .from('job_evaluations')
+          .select('id')
+          .eq('user_id', user.id)
+          .in('job_id', evaluatedJobIds)
+          .gte('score', user.instant_alert_threshold)
+          .is('instant_alerted_at', null)
+
+        const hotEvalIds = (hotEvals ?? []).map(e => e.id)
+
+        if (hotEvalIds.length > 0) {
+          try {
+            await sendInstantAlertTask.trigger({ userId: user.id, evaluationIds: hotEvalIds })
+          } catch (err) {
+            Sentry.captureException(err, { extra: { userId: user.id, hotEvalIds, phase } })
+            console.error(`Failed to trigger instant alert for user ${user.id}:`, err)
+          }
         }
       }
     }

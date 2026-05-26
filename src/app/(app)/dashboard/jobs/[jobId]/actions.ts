@@ -7,7 +7,7 @@ import { upsertJobAction as upsertJobActionQuery } from '@/lib/supabase/queries'
 
 export async function upsertJobActionFromDetail(
   jobId: string,
-  status: 'saved' | 'hidden' | 'applied'
+  status: 'saved' | 'dismissed' | 'applied'
 ) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -15,7 +15,7 @@ export async function upsertJobActionFromDetail(
 
   await upsertJobActionQuery(user.id, jobId, status)
 
-  if (status === 'hidden') {
+  if (status === 'dismissed') {
     redirect('/dashboard')
   }
 

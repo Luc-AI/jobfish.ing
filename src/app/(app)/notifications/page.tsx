@@ -22,7 +22,7 @@ export default async function NotificationsPage() {
     .single()
 
   return (
-    <div className="p-8 max-w-lg mx-auto">
+    <div className="px-4 py-8 md:px-8 max-w-lg mx-auto">
       <div className="mb-6">
         <h1 className="text-2xl font-bold tracking-tight">Notifications</h1>
         <p className="text-sm text-muted-foreground mt-0.5">
@@ -33,7 +33,9 @@ export default async function NotificationsPage() {
       <NotificationsForm
         defaultThreshold={profile?.threshold ?? 7.0}
         defaultEnabled={profile?.notifications_enabled ?? true}
+        defaultInstantAlertThreshold={profile?.instant_alert_threshold ?? null}
         lastNotifiedAt={lastEval?.notified_at ?? null}
+        userEmail={user.email}
         onSave={saveNotificationSettings}
       />
     </div>

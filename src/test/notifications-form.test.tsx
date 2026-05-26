@@ -5,13 +5,13 @@ import { NotificationsForm } from '@/components/features/notifications-form'
 
 describe('NotificationsForm', () => {
   it('renders threshold value', () => {
-    render(<NotificationsForm defaultThreshold={7.0} defaultEnabled={true} onSave={vi.fn()} />)
+    render(<NotificationsForm defaultThreshold={7.0} defaultEnabled={true} defaultInstantAlertThreshold={null} onSave={vi.fn()} />)
     const thresholdDisplay = screen.getByText('7.0', { selector: 'span.text-3xl' })
     expect(thresholdDisplay).toBeInTheDocument()
   })
 
   it('renders notifications toggle in enabled state', () => {
-    render(<NotificationsForm defaultThreshold={7.0} defaultEnabled={true} onSave={vi.fn()} />)
+    render(<NotificationsForm defaultThreshold={7.0} defaultEnabled={true} defaultInstantAlertThreshold={null} onSave={vi.fn()} />)
     const toggle = screen.getByRole('switch')
     expect(toggle).toBeChecked()
   })
@@ -19,8 +19,8 @@ describe('NotificationsForm', () => {
   it('calls onSave when saved', async () => {
     const user = userEvent.setup()
     const onSave = vi.fn()
-    render(<NotificationsForm defaultThreshold={7.0} defaultEnabled={true} onSave={onSave} />)
+    render(<NotificationsForm defaultThreshold={7.0} defaultEnabled={true} defaultInstantAlertThreshold={null} onSave={onSave} />)
     await user.click(screen.getByRole('button', { name: /save/i }))
-    expect(onSave).toHaveBeenCalledWith({ threshold: 7.0, notificationsEnabled: true })
+    expect(onSave).toHaveBeenCalledWith({ threshold: 7.0, notificationsEnabled: true, instantAlertThreshold: null })
   })
 })

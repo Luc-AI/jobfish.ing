@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { PDFParse } from 'pdf-parse'
+import { summarizeCvTask } from '@/trigger/summarize-cv'
 
 const MAX_BYTES = 10 * 1024 * 1024 // 10 MB
 
@@ -59,6 +60,8 @@ export async function POST(req: NextRequest) {
   if (error) {
     return NextResponse.json({ error: error.message, code: 'db_error' }, { status: 500 })
   }
+
+  await summarizeCvTask.trigger({ userId: user.id })
 
   return NextResponse.json({ extractedText })
 }

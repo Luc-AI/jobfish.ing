@@ -5,6 +5,7 @@ const mockFrom = vi.fn()
 const mockFetchDelta = vi.fn()
 const mockNormalizeJobichJob = vi.fn()
 const mockEvaluateTrigger = vi.fn()
+const mockCategorizeTrigger = vi.fn()
 const mockCaptureException = vi.fn()
 
 vi.mock('@trigger.dev/sdk', () => ({
@@ -24,6 +25,10 @@ vi.mock('@/trigger/lib/jobich', () => ({
 
 vi.mock('@/trigger/evaluate-jobs', () => ({
   evaluateJobsTask: { triggerAndWait: mockEvaluateTrigger },
+}))
+
+vi.mock('@/trigger/categorize-jobs', () => ({
+  categorizeJobsTask: { triggerAndWait: mockCategorizeTrigger },
 }))
 
 vi.mock('@sentry/node', () => ({
@@ -72,6 +77,7 @@ describe('syncJobsTask', () => {
     vi.clearAllMocks()
     mockNormalizeJobichJob.mockImplementation(job => ({ ...job, external_id: job.id }))
     mockEvaluateTrigger.mockResolvedValue({ ok: true })
+    mockCategorizeTrigger.mockResolvedValue({ ok: true })
   })
 
   it('uses last_synced_at from sync_state when available', async () => {
@@ -152,5 +158,43 @@ describe('syncJobsTask', () => {
 
     expect(result.added).toBe(1)
     expect(result.removed).toBe(1)
+  })
+
+  it('triggers categorize-jobs before evaluate-jobs when new jobs exist', async () => {
+    makeMockSupabase({ insertedJobIds: ['job-1'] })
+    mockFetchDelta.mockResolvedValue({
+      ...emptyDelta,
+      added: [
+        { id: 'ext-1', title: 'Engineer', company: 'Acme', location: 'Zurich',
+          remote_type: 'Hybrid', description: null, url: 'https://example.com/1',
+          posted_at: '2026-05-20', updated_at: '2026-05-20T00:00:00Z', source: 'LinkedIn', industry: 'IT & Software' },
+      ],
+    })
+
+    const callOrder: string[] = []
+    mockCategorizeTrigger.mockImplementation(async () => { callOrder.push('categorize'); return { ok: true } })
+    mockEvaluateTrigger.mockImplementation(async () => { callOrder.push('evaluate'); return { ok: true } })
+
+    await (syncJobsTask as any).run()
+
+    expect(callOrder).toEqual(['categorize', 'evaluate'])
+    expect(mockCategorizeTrigger).toHaveBeenCalledWith({ jobIds: ['job-1'] })
+  })
+
+  it('still triggers evaluate-jobs even if categorize-jobs fails', async () => {
+    makeMockSupabase({ insertedJobIds: ['job-1'] })
+    mockFetchDelta.mockResolvedValue({
+      ...emptyDelta,
+      added: [
+        { id: 'ext-1', title: 'Engineer', company: 'Acme', location: 'Zurich',
+          remote_type: 'Hybrid', description: null, url: 'https://example.com/1',
+          posted_at: '2026-05-20', updated_at: '2026-05-20T00:00:00Z', source: 'LinkedIn', industry: 'IT & Software' },
+      ],
+    })
+    mockCategorizeTrigger.mockResolvedValue({ ok: false, error: 'LLM timeout' })
+
+    await (syncJobsTask as any).run()
+
+    expect(mockEvaluateTrigger).toHaveBeenCalledWith({ jobIds: ['job-1'] })
   })
 })

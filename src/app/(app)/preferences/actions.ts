@@ -1,4 +1,3 @@
-// src/app/(app)/preferences/actions.ts
 'use server'
 
 import { revalidatePath } from 'next/cache'
@@ -7,7 +6,6 @@ import { updateProfile, updatePreferences } from '@/lib/supabase/queries'
 import type { RoleSelection } from '@/lib/supabase/types'
 
 export async function savePreferences(values: {
-  cvText: string
   targetRoles: RoleSelection[]
   targetIndustries: string[]
   excludedIndustries: string[]
@@ -24,7 +22,7 @@ export async function savePreferences(values: {
   if (!user) throw new Error('Not authenticated')
 
   await Promise.all([
-    updateProfile(user.id, { cv_text: values.cvText, years_experience: values.yearsExperience }),
+    updateProfile(user.id, { years_experience: values.yearsExperience }),
     updatePreferences(user.id, {
       target_roles: values.targetRoles,
       target_industries: values.targetIndustries,

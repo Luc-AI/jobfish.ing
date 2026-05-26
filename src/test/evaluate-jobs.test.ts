@@ -25,6 +25,10 @@ vi.mock('@sentry/node', () => ({
   captureMessage: vi.fn(),
 }))
 
+vi.mock('@/trigger/send-instant-alert', () => ({
+  sendInstantAlertTask: { trigger: vi.fn() },
+}))
+
 const { evaluateJobsTask } = await import('@/trigger/evaluate-jobs')
 
 const mockEvalResult = {
@@ -61,7 +65,7 @@ function makeChainable(result: { data: any[]; error: null | { message: string } 
 let jobsChain: ReturnType<typeof makeChainable>
 
 function setupMocks({
-  jobs = [{ id: 'job-1', title: 'Head of Product', company: 'Acme', location: 'Zurich', description: 'Strong operator.', industry: 'IT & Software' }],
+  jobs = [{ id: 'job-1', title: 'Head of Product', company: 'Acme', location: 'Zurich', description: 'Strong operator.', industry: 'IT & Software', categories: ['product'] }],
   prefs = { user_id: 'user-1', target_roles: [{ role: 'Head of Product' }], target_industries: ['SaaS'], locations: ['Zurich'], excluded_companies: [] as string[], excluded_industries: [] as string[] },
 } = {}) {
   jobsChain = makeChainable({ data: jobs, error: null })
@@ -110,10 +114,11 @@ describe('evaluateJobsTask', () => {
     expect(mockCallOpenRouter).not.toHaveBeenCalled()
   })
 
-  it('skips evaluation when job title does not match target roles', async () => {
+  it('skips evaluation when job categories do not overlap with user target role categories', async () => {
+    // Job is in 'engineering' category; user targets 'Product Manager' which maps to 'product' category — no overlap
     setupMocks({
-      jobs: [{ id: 'job-1', title: 'Data Engineer', company: 'Acme', location: 'Zurich', description: 'Data stuff.', industry: 'IT & Software' }],
-      prefs: { user_id: 'user-1', target_roles: [{ role: 'Head of Product' }], target_industries: [], locations: [], excluded_companies: [], excluded_industries: [] },
+      jobs: [{ id: 'job-1', title: 'Software Engineer', company: 'Acme', location: 'Zurich', description: 'Code stuff.', industry: 'IT & Software', categories: ['engineering'] }],
+      prefs: { user_id: 'user-1', target_roles: [{ role: 'Product Manager' }], target_industries: [], locations: [], excluded_companies: [], excluded_industries: [] },
     })
     const result = await (evaluateJobsTask as any).run({ jobIds: ['job-1'] })
     expect(result).toMatchObject({ evaluatedCount: 0 })

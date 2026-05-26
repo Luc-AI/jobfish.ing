@@ -6,22 +6,38 @@ import { Badge } from '@/components/ui/badge'
 import { ScoreBadge } from './score-badge'
 import { MapPin, ExternalLink } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { toast } from 'sonner'
 import type { JobDetailData } from '@/lib/supabase/queries'
 
 interface JobDetailHeaderProps {
   job: JobDetailData['job']
   score: number | null
   action: JobDetailData['action']
-  onAction: (jobId: string, status: 'saved' | 'hidden' | 'applied') => Promise<void>
+  onAction: (jobId: string, status: 'saved' | 'dismissed' | 'applied') => Promise<void>
 }
 
 export function JobDetailHeader({ job, score, action, onAction }: JobDetailHeaderProps) {
   const [isPending, startTransition] = useTransition()
   const currentStatus = action?.status
 
-  function handleAction(status: 'saved' | 'hidden' | 'applied') {
-    startTransition(() => {
-      onAction(job.id, status)
+  function handleAction(status: 'saved' | 'dismissed' | 'applied') {
+    startTransition(async () => {
+      try {
+        await onAction(job.id, status)
+        const successMessages = {
+          saved: 'Job saved',
+          dismissed: 'Job dismissed',
+          applied: 'Marked as applied — good luck!',
+        }
+        toast.success(successMessages[status])
+      } catch {
+        const errorMessages = {
+          saved: 'Failed to save job',
+          dismissed: 'Failed to dismiss job',
+          applied: 'Failed to record application',
+        }
+        toast.error(errorMessages[status])
+      }
     })
   }
 
@@ -75,7 +91,7 @@ export function JobDetailHeader({ job, score, action, onAction }: JobDetailHeade
           size="sm"
           variant="outline"
           disabled={isPending}
-          onClick={() => handleAction('hidden')}
+          onClick={() => handleAction('dismissed')}
         >
           Hide
         </Button>

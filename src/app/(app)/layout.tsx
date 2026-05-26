@@ -20,5 +20,5 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   if (!profile?.onboarding_completed) redirect('/onboarding')
 
-  return <AppShell>{children}</AppShell>
+  return <AppShell userEmail={user.email}>{children}</AppShell>
 }
