@@ -15,7 +15,6 @@ import { LowConfidenceFold } from '@/components/features/low-confidence-fold'
 import { FeedClient } from '@/components/features/feed-client'
 import { AppliedTracker, type TrackerJob } from '@/components/features/applied-tracker'
 import { DismissedList, type DismissedJob } from '@/components/features/dismissed-list'
-import { Button } from '@/components/ui/button'
 import {
   passJobAction,
   saveJobAction,
@@ -108,24 +107,18 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
 
   return (
     <div style={{ maxWidth: 816, margin: '0 auto', padding: '32px 16px', overflowX: 'hidden' }}>
-      <div className="flex items-start justify-between mb-6">
-        <div>
-          <h1
-            className="font-bold leading-tight"
-            style={{ fontSize: 28, letterSpacing: '-0.6px' }}
-          >
-            Your job log
-          </h1>
-          {subtitleParts.length > 0 && (
-            <p className="text-sm text-muted-foreground mt-1">
-              {subtitleParts.join(' · ')}
-            </p>
-          )}
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" disabled>Search</Button>
-          <Button variant="outline" size="sm" disabled>Filters</Button>
-        </div>
+      <div className="mb-6">
+        <h1
+          className="font-bold leading-tight"
+          style={{ fontSize: 28, letterSpacing: '-0.6px' }}
+        >
+          Your job log
+        </h1>
+        {subtitleParts.length > 0 && (
+          <p className="text-sm text-muted-foreground mt-1">
+            {subtitleParts.join(' · ')}
+          </p>
+        )}
       </div>
 
       <LogTab tabs={tabs} activeTab={tab} />
