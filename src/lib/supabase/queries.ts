@@ -118,7 +118,16 @@ export async function getJobFeed(
     const lastVisit = prefs?.last_dashboard_visit_at ?? null
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
 
-    const { data: evaluations, error } = await supabase
+    // Fetch dismissed job IDs separately to avoid PostgREST LEFT→INNER JOIN coercion
+    // when filtering on an embedded resource (`.not('user_job_actions.status', ...)` breaks LEFT JOIN)
+    const { data: dismissedActions } = await supabase
+      .from('user_job_actions')
+      .select('job_id')
+      .eq('user_id', userId)
+      .eq('status', 'dismissed')
+    const dismissedJobIds = dismissedActions?.map(a => a.job_id) ?? []
+
+    let query = supabase
       .from('job_evaluations')
       .select(`
         id, job_id, score, reasoning, dimensions, notified_at, created_at, read_at, chips,
@@ -128,10 +137,16 @@ export async function getJobFeed(
       `)
       .eq('user_id', userId)
       .eq('jobs.is_active', true)
-      .gte('notified_at', sevenDaysAgo)
-      .not('user_job_actions.status', 'eq', 'dismissed')
+      // Include jobs with no notified_at (evaluated but not yet sent) as well as recent ones
+      .or(`notified_at.is.null,notified_at.gte.${sevenDaysAgo}`)
       .order('score', { ascending: false })
       .range(offset, offset + pageSize - 1)
+
+    if (dismissedJobIds.length > 0) {
+      query = query.not('job_id', 'in', `(${dismissedJobIds.join(',')})`)
+    }
+
+    const { data: evaluations, error } = await query
 
     if (error) return { data: [], error }
 
