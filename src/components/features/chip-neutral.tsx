@@ -4,7 +4,7 @@ export type { Chip }
 
 const SYMBOL: Record<Chip['tone'], string> = {
   pos: '✓',
-  warn: '△',
+  warn: '~',
   neg: '✗',
 }
 
