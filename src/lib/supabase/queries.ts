@@ -132,8 +132,7 @@ export async function getJobFeed(
       .select(`
         id, job_id, score, reasoning, dimensions, notified_at, created_at, read_at, chips,
         detailed_reasoning,
-        jobs!inner (id, title, company, location, url, source, remote_type, industry, synced_at),
-        user_job_actions (job_id, status, applied_at)
+        jobs!inner (id, title, company, location, url, source, remote_type, industry, synced_at)
       `)
       .eq('user_id', userId)
       .eq('jobs.is_active', true)
@@ -150,17 +149,27 @@ export async function getJobFeed(
 
     if (error) return { data: [], error }
 
+    // Fetch user_job_actions separately — no FK exists between job_evaluations and user_job_actions
+    const evalJobIds = (evaluations ?? []).map(e => e.job_id)
+    const actionsByJobId = new Map<string, { job_id: string; status: string; applied_at: string | null }>()
+    if (evalJobIds.length > 0) {
+      const { data: actions } = await supabase
+        .from('user_job_actions')
+        .select('job_id, status, applied_at')
+        .eq('user_id', userId)
+        .in('job_id', evalJobIds)
+      for (const a of actions ?? []) actionsByJobId.set(a.job_id!, { job_id: a.job_id!, status: a.status, applied_at: a.applied_at })
+    }
+
     type EvalRow = {
       id: string; job_id: string; score: number; reasoning: string | null
       dimensions: unknown; notified_at: string | null; created_at: string
       read_at: string | null; chips: unknown; detailed_reasoning: unknown
-      jobs: unknown; user_job_actions: unknown
+      jobs: unknown
     }
 
     const items: FeedItem[] = ((evaluations ?? []) as EvalRow[]).map(e => {
-      const rawAction = Array.isArray(e.user_job_actions)
-        ? (e.user_job_actions[0] ?? null)
-        : (e.user_job_actions as { job_id: string; status: string; applied_at: string | null } | null)
+      const rawAction = actionsByJobId.get(e.job_id) ?? null
 
       const chips: Chip[] = Array.isArray(e.chips) && e.chips.length > 0
         ? (e.chips as Chip[])
@@ -192,17 +201,31 @@ export async function getJobFeed(
   }
 
   if (tab === 'saved' || tab === 'dismissed') {
+    // Fetch actions first (status filter), then join to evaluations — no FK between the two tables
+    const { data: actions, error: actionsError } = await supabase
+      .from('user_job_actions')
+      .select('job_id, status, applied_at')
+      .eq('user_id', userId)
+      .eq('status', tab)
+    if (actionsError) return { data: [], error: actionsError }
+
+    const actionJobIds = (actions ?? []).map(a => a.job_id!)
+    if (actionJobIds.length === 0) return { data: [], error: null }
+
+    const actionsByJobId = new Map<string, { job_id: string; status: string; applied_at: string | null }>(
+      (actions ?? []).map(a => [a.job_id!, { job_id: a.job_id!, status: a.status, applied_at: a.applied_at }])
+    )
+
     const { data: evaluations, error } = await supabase
       .from('job_evaluations')
       .select(`
         id, job_id, score, reasoning, dimensions, notified_at, created_at, read_at, chips,
         detailed_reasoning,
-        jobs!inner (id, title, company, location, url, source, remote_type, industry, synced_at),
-        user_job_actions!inner (job_id, status, applied_at)
+        jobs!inner (id, title, company, location, url, source, remote_type, industry, synced_at)
       `)
       .eq('user_id', userId)
       .eq('jobs.is_active', true)
-      .eq('user_job_actions.status', tab)
+      .in('job_id', actionJobIds)
       .order('score', { ascending: false })
       .range(offset, offset + pageSize - 1)
 
@@ -212,13 +235,11 @@ export async function getJobFeed(
       id: string; job_id: string; score: number; reasoning: string | null
       dimensions: unknown; notified_at: string | null; created_at: string
       read_at: string | null; chips: unknown; detailed_reasoning: unknown
-      jobs: unknown; user_job_actions: unknown
+      jobs: unknown
     }
 
     const items: FeedItem[] = ((evaluations ?? []) as EvalRow[]).map(e => {
-      const rawAction = Array.isArray(e.user_job_actions)
-        ? (e.user_job_actions[0] ?? null)
-        : (e.user_job_actions as { job_id: string; status: string; applied_at: string | null } | null)
+      const rawAction = actionsByJobId.get(e.job_id) ?? null
 
       const chips: Chip[] = Array.isArray(e.chips) && e.chips.length > 0
         ? (e.chips as Chip[])
@@ -245,19 +266,32 @@ export async function getJobFeed(
     return { data: items, error: null }
   }
 
-  // applied tab — sort by applied_at DESC
+  // applied tab — fetch actions first, sort by applied_at DESC in-memory
+  const { data: appliedActions, error: appliedActionsError } = await supabase
+    .from('user_job_actions')
+    .select('job_id, status, applied_at')
+    .eq('user_id', userId)
+    .eq('status', 'applied')
+    .order('applied_at', { ascending: false })
+  if (appliedActionsError) return { data: [], error: appliedActionsError }
+
+  const appliedJobIds = (appliedActions ?? []).map(a => a.job_id!)
+  if (appliedJobIds.length === 0) return { data: [], error: null }
+
+  const appliedByJobId = new Map<string, { job_id: string; status: string; applied_at: string | null }>(
+    (appliedActions ?? []).map(a => [a.job_id!, { job_id: a.job_id!, status: a.status, applied_at: a.applied_at }])
+  )
+
   const { data: evaluations, error } = await supabase
     .from('job_evaluations')
     .select(`
       id, job_id, score, reasoning, dimensions, notified_at, created_at, read_at, chips,
       detailed_reasoning,
-      jobs!inner (id, title, company, location, url, source, remote_type, industry, synced_at),
-      user_job_actions!inner (job_id, status, applied_at)
+      jobs!inner (id, title, company, location, url, source, remote_type, industry, synced_at)
     `)
     .eq('user_id', userId)
     .eq('jobs.is_active', true)
-    .eq('user_job_actions.status', 'applied')
-    .order('applied_at', { referencedTable: 'user_job_actions', ascending: false })
+    .in('job_id', appliedJobIds)
     .range(offset, offset + pageSize - 1)
 
   if (error) return { data: [], error }
@@ -266,13 +300,11 @@ export async function getJobFeed(
     id: string; job_id: string; score: number; reasoning: string | null
     dimensions: unknown; notified_at: string | null; created_at: string
     read_at: string | null; chips: unknown; detailed_reasoning: unknown
-    jobs: unknown; user_job_actions: unknown
+    jobs: unknown
   }
 
   const items: FeedItem[] = ((evaluations ?? []) as EvalRow[]).map(e => {
-    const rawAction = Array.isArray(e.user_job_actions)
-      ? (e.user_job_actions[0] ?? null)
-      : (e.user_job_actions as { job_id: string; status: string; applied_at: string | null } | null)
+    const rawAction = appliedByJobId.get(e.job_id) ?? null
 
     const chips: Chip[] = Array.isArray(e.chips) && e.chips.length > 0
       ? (e.chips as Chip[])
@@ -294,6 +326,13 @@ export async function getJobFeed(
       jobs: e.jobs as FeedItem['jobs'],
       user_job_actions: rawAction,
     }
+  })
+
+  // Preserve applied_at sort order from the actions query
+  items.sort((a, b) => {
+    const aAt = appliedByJobId.get(a.job_id)?.applied_at ?? ''
+    const bAt = appliedByJobId.get(b.job_id)?.applied_at ?? ''
+    return bAt.localeCompare(aAt)
   })
 
   return { data: items, error: null }
