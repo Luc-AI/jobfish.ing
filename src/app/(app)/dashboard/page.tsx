@@ -53,7 +53,6 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
     tab === 'applied' ? getAppliedJobs(user.id) : Promise.resolve({ data: [] as AppliedJob[], error: null }),
   ])
 
-  console.log('[dashboard] feedResult:', { count: feedResult.data?.length, error: feedResult.error, userId: user.id, tab })
   const feed: FeedItem[] = feedResult.data ?? []
   const threshold = prefsResult.data?.score_threshold ?? 7.0
 
@@ -109,12 +108,6 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
 
   return (
     <div style={{ maxWidth: 816, margin: '0 auto', padding: '32px 16px', overflowX: 'hidden' }}>
-      {/* DEBUG — remove before shipping */}
-      {process.env.NODE_ENV !== 'production' && (
-        <pre style={{ fontSize: 11, background: '#fef9c3', padding: 8, marginBottom: 16, overflowX: 'auto' }}>
-          {JSON.stringify({ tab, feedCount: feed.length, error: feedResult.error ?? null, threshold, userId: user.id }, null, 2)}
-        </pre>
-      )}
       <div className="flex items-start justify-between mb-6">
         <div>
           <h1
