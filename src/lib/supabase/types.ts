@@ -6,6 +6,10 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[]
 
+export type RoleSelection = {
+  role: string
+}
+
 export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
@@ -158,7 +162,7 @@ export type Database = {
           remote_preference: string | null
           score_threshold: number | null
           target_industries: string[] | null
-          target_roles: Json | null
+          target_roles: RoleSelection[] | null
           updated_at: string | null
           user_id: string | null
         }
@@ -173,7 +177,7 @@ export type Database = {
           remote_preference?: string | null
           score_threshold?: number | null
           target_industries?: string[] | null
-          target_roles?: Json | null
+          target_roles?: RoleSelection[] | null
           updated_at?: string | null
           user_id?: string | null
         }
@@ -188,7 +192,7 @@ export type Database = {
           remote_preference?: string | null
           score_threshold?: number | null
           target_industries?: string[] | null
-          target_roles?: Json | null
+          target_roles?: RoleSelection[] | null
           updated_at?: string | null
           user_id?: string | null
         }
@@ -455,5 +459,3 @@ export const Constants = {
     },
   },
 } as const
-A new version of Supabase CLI is available: v2.101.0 (currently installed v2.85.0)
-We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
