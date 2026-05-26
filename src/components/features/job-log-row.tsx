@@ -71,7 +71,7 @@ export function JobLogRow({
 
         {/* Logo */}
         <div className="shrink-0">
-          <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center text-[13px] font-semibold text-muted-foreground overflow-hidden select-none">
+          <div className="w-12 h-12 rounded-xl bg-zinc-200 flex items-center justify-center text-[14px] font-bold text-zinc-600 overflow-hidden select-none ring-1 ring-zinc-300/60">
             {company.slice(0, 2).toUpperCase()}
           </div>
         </div>
@@ -97,7 +97,7 @@ export function JobLogRow({
           </span>
 
           {notifiedAt && (
-            <span className="text-[12.5px] text-muted-foreground mt-0.5">
+            <span className="mt-1 self-start inline-flex items-center rounded-full border border-[#e4e4e7] bg-white px-2 py-0.5 text-[11.5px] font-medium text-muted-foreground">
               {formatRelativeTime(notifiedAt)}
             </span>
           )}
