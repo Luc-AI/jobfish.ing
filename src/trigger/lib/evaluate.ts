@@ -116,12 +116,16 @@ Score how well this job matches the candidate on a scale of 0.0–10.0 using the
 - 7–8: Candidate's experience level fits the role's expectations
 - 9–10: Candidate's years and seniority are an excellent match for the stated requirements
 
-**location_fit** — How well does the job's location align with the candidate's location preferences? Use the Job Location field as the primary signal — do not infer location from description text.
-- If the job is fully remote: score 8 unless the candidate explicitly prefers on-site only
-- If Job Location matches one of the candidate's preferred locations: score 8–10
-- If Job Location is in a different city or country from all preferences: score 2–5
-- If the candidate has no stated location preferences ("Not specified"): score 7 (neutral)
-- If Job Location is "Not specified": score 6 (cannot assess — slight uncertainty penalty)
+**location_fit** — How well does the job's location align with the candidate's location preferences? Use the Job Location field as the primary signal — do not infer location from description text. Do not adjust this score based on remote/hybrid/on-site work type — evaluate the stated location only.
+
+Apply the first matching rule:
+- **0–2**: Job is in a different country from all of the candidate's preferred locations. Examples: preferred=Zurich, job=Berlin → 1. preferred=London, job=New York → 0.
+- **3–4**: Same country, but the job location is more than ~150 km from all preferred locations. Examples: preferred=Geneva, job=Zurich (~260 km) → 3. preferred=London, job=Edinburgh (~660 km) → 3.
+- **5–6**: Same country and within ~150 km, but the job is in a different language or cultural region. This applies where meaningful language/cultural barriers exist within the same country. Examples: preferred=Geneva (Romandie), job=Bern (German-speaking) → 5. preferred=Zurich (German-speaking), job=Lugano (Italian-speaking) → 5. preferred=Brussels (French), job=Ghent (Dutch-speaking) → 5. In countries without distinct language regions, skip this band — go directly to 7–8.
+- **7–8**: Same country, same language/cultural region, within ~150 km. Examples: preferred=Zurich, job=Basel (~80 km, same region) → 7. preferred=Geneva, job=Lausanne (~60 km, both Romandie) → 8.
+- **9–10**: Job is in the same city or immediate metro area as one of the preferred locations. Examples: preferred=Zurich, job=Zurich → 10. preferred=Paris, job=Paris La Défense → 9.
+- If the candidate has no stated location preferences ("Not specified"): score 7 — cannot penalise.
+- If Job Location is "Not specified": score 6 — cannot assess, slight uncertainty penalty.
 
 **upside** — Does this role represent meaningful career growth or strategic positioning beyond just "it fits"? Consider: step up in seniority, entry into a more prestigious company or sector, new high-value technical domain, leadership opportunity.
 - 0–3: Lateral or backward move — no clear growth angle relative to the candidate's trajectory
@@ -131,7 +135,12 @@ Score how well this job matches the candidate on a scale of 0.0–10.0 using the
 
 ### Overall Score
 
-Weight role_fit and experience_fit most heavily — a job that misses on either cannot score above 7.0 regardless of other dimensions. A clear location mismatch when the candidate has stated preferences caps the overall score at 6.5. upside is a bonus signal, not a primary driver.
+Weight role_fit and experience_fit most heavily — a job that misses on either cannot score above 7.0 regardless of other dimensions. upside is a bonus signal, not a primary driver.
+
+Location mismatch applies a hard cap on the overall score:
+- location_fit 0–2: overall score cannot exceed 2.5
+- location_fit 3–4: overall score cannot exceed 4.5
+- location_fit 5–6: overall score cannot exceed 6.0
 
 Respond with ONLY valid JSON in this exact format:
 {
