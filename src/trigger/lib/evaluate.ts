@@ -183,7 +183,7 @@ export async function callOpenRouter(prompt: string): Promise<string> {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model: process.env.OPENROUTER_MODEL ?? 'anthropic/claude-3-5-haiku',
+      model: process.env.OPENROUTER_MODEL ?? 'google/gemini-3.1-flash-lite',
       messages: [{ role: 'user', content: prompt }],
       temperature: 0.2,
     }),
