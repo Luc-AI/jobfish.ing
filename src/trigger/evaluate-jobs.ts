@@ -48,6 +48,7 @@ interface EvaluateJobsPayload {
 
 export const evaluateJobsTask = task({
   id: 'evaluate-jobs',
+  maxDuration: 600,
   retry: { maxAttempts: 2 },
   run: async ({ jobIds, userIds, since, until, phase }: EvaluateJobsPayload) => {
     if (!process.env.OPENROUTER_API_KEY) throw new Error('OPENROUTER_API_KEY is not set')
@@ -113,9 +114,18 @@ export const evaluateJobsTask = task({
         excluded_industries: (prefs?.excluded_industries ?? []) as string[],
       })
 
+      const { data: existingRows } = await supabase
+        .from('job_evaluations')
+        .select('job_id')
+        .eq('user_id', user.id)
+        .in('job_id', candidateJobs.map(j => j.id))
+
+      const alreadyEvaluated = new Set((existingRows ?? []).map(r => r.job_id))
+      const jobsToEvaluate = candidateJobs.filter(j => !alreadyEvaluated.has(j.id))
+
       const evaluatedJobIds: string[] = []
 
-      for (const job of candidateJobs) {
+      for (const job of jobsToEvaluate) {
         try {
           const prompt = buildEvaluationPrompt({
             jobTitle: job.title,
