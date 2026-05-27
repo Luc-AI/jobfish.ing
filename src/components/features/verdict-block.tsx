@@ -14,10 +14,7 @@ function scoreTone(score: number): string {
 
 export function VerdictBlock({ score, chips }: VerdictBlockProps) {
   return (
-    <div
-      className="flex flex-col gap-3 border-l border-border"
-      style={{ paddingLeft: 22, minWidth: 168 }}
-    >
+    <div className="flex flex-col gap-3 w-full">
       <div className="flex items-baseline gap-1">
         <span
           className={`font-bold tabular-nums ${scoreTone(score)}`}
