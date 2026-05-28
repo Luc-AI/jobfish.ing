@@ -134,7 +134,6 @@ export async function getJobFeed(
     const dismissedJobIds = dismissedActions?.map(a => a.job_id) ?? []
 
     const sevenDaysAgoDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
-    const sevenDaysAgoIso = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
 
     let query = supabase
       .from('job_evaluations')
@@ -151,10 +150,7 @@ export async function getJobFeed(
       .range(offset, offset + pageSize - 1)
 
     if (timeFilter === '7d') {
-      query = query.or(
-        `date_posted.gte.${sevenDaysAgoDate},and(date_posted.is.null,created_at.gte.${sevenDaysAgoIso})`,
-        { foreignTable: 'jobs' }
-      )
+      query = query.gte('jobs.date_posted', sevenDaysAgoDate)
     }
 
     if (dismissedJobIds.length > 0) {
@@ -242,7 +238,6 @@ export async function getJobFeed(
     )
 
     const sevenDaysAgoDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
-    const sevenDaysAgoIso = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
 
     let query = supabase
       .from('job_evaluations')
@@ -260,10 +255,7 @@ export async function getJobFeed(
       .range(offset, offset + pageSize - 1)
 
     if (timeFilter === '7d') {
-      query = query.or(
-        `date_posted.gte.${sevenDaysAgoDate},and(date_posted.is.null,created_at.gte.${sevenDaysAgoIso})`,
-        { foreignTable: 'jobs' }
-      )
+      query = query.gte('jobs.date_posted', sevenDaysAgoDate)
     }
 
     const { data: evaluations, error, count } = await query
