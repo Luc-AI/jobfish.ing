@@ -52,10 +52,11 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   const page = Math.max(1, Number(params.page ?? 1))
   const pageSize = 20
 
+  // Skip all per-tab fetches while searching — search is global and hides the tab bar.
   const [feedResult, prefsResult, appliedResult] = isSearching
     ? [
         { data: [] as FeedItem[], error: null },
-        await getPreferences(user.id),
+        { data: null, error: null },
         { data: [] as AppliedJob[], error: null },
       ]
     : await Promise.all([
@@ -77,11 +78,13 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   const aboveThreshold: FeedItem[] = tab === 'all' ? feed.filter((f: FeedItem) => f.score >= threshold) : feed
   const belowThreshold: FeedItem[] = tab === 'all' ? feed.filter((f: FeedItem) => f.score < threshold) : []
 
-  const [savedResult, appliedCountResult, dismissedResult] = await Promise.all([
-    supabase.from('user_job_actions').select('*', { count: 'exact', head: true }).eq('user_id', user.id).eq('status', 'saved'),
-    supabase.from('user_job_actions').select('*', { count: 'exact', head: true }).eq('user_id', user.id).eq('status', 'applied'),
-    supabase.from('user_job_actions').select('*', { count: 'exact', head: true }).eq('user_id', user.id).eq('status', 'dismissed'),
-  ])
+  const [savedResult, appliedCountResult, dismissedResult] = isSearching
+    ? [{ count: 0 }, { count: 0 }, { count: 0 }]
+    : await Promise.all([
+        supabase.from('user_job_actions').select('*', { count: 'exact', head: true }).eq('user_id', user.id).eq('status', 'saved'),
+        supabase.from('user_job_actions').select('*', { count: 'exact', head: true }).eq('user_id', user.id).eq('status', 'applied'),
+        supabase.from('user_job_actions').select('*', { count: 'exact', head: true }).eq('user_id', user.id).eq('status', 'dismissed'),
+      ])
 
   const tabs = [
     { value: 'all', label: 'All', count: tab === 'all' ? totalCount : undefined },
