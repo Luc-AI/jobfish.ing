@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { render } from '@react-email/components'
-import { JobDigestEmail } from '@/lib/email/job-digest'
+import { JobDigestEmail, truncateReasoning } from '@/lib/email/job-digest'
 
 const mockJobs = [
   {
@@ -24,6 +24,38 @@ const mockJobs = [
 ]
 
 const singleJob = [mockJobs[0]]
+
+describe('truncateReasoning', () => {
+  it('returns the input unchanged when it is at or below the limit', () => {
+    expect(truncateReasoning('Short reasoning.')).toBe('Short reasoning.')
+  })
+
+  it('returns the input unchanged when it is exactly 80 chars', () => {
+    const input = 'a'.repeat(80)
+    expect(truncateReasoning(input)).toBe(input)
+    expect(truncateReasoning(input).length).toBe(80)
+  })
+
+  it('truncates at the last word boundary at or before 80 chars and appends an ellipsis', () => {
+    const input =
+      'Strong React and payments background, solid product instincts, ships fast, very collaborative.'
+    const result = truncateReasoning(input)
+    expect(result.endsWith('…')).toBe(true)
+    expect(result.length).toBeLessThanOrEqual(81) // 80 chars + 1 ellipsis
+    expect(result).not.toMatch(/\s…$/) // no trailing whitespace before ellipsis
+    expect(input.startsWith(result.slice(0, -1))).toBe(true) // prefix is a substring of input
+  })
+
+  it('falls back to a hard cut at 80 chars when there is no word boundary in the first 80 chars', () => {
+    const input = 'a'.repeat(120)
+    const result = truncateReasoning(input)
+    expect(result).toBe('a'.repeat(80) + '…')
+  })
+
+  it('handles empty input', () => {
+    expect(truncateReasoning('')).toBe('')
+  })
+})
 
 describe('JobDigestEmail', () => {
   it('renders a pluralized summary heading', async () => {

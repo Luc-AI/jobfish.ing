@@ -11,6 +11,18 @@ import {
   Text,
 } from '@react-email/components'
 
+const REASONING_MAX_CHARS = 80
+
+export function truncateReasoning(input: string): string {
+  if (input.length <= REASONING_MAX_CHARS) {
+    return input
+  }
+  const window = input.slice(0, REASONING_MAX_CHARS)
+  const lastSpace = window.lastIndexOf(' ')
+  const cut = lastSpace > 0 ? window.slice(0, lastSpace) : window
+  return `${cut.trimEnd()}…`
+}
+
 export interface DigestJobItem {
   jobTitle: string
   company: string
