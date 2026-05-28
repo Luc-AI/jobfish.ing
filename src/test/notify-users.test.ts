@@ -138,6 +138,42 @@ describe('notifyUsersTask', () => {
     ])
   })
 
+  it('passes evaluation dimensions through to the digest item unchanged', () => {
+    const digests = buildUserDigests(
+      [
+        {
+          id: 'evaluation-dim',
+          score: 8.4,
+          reasoning: 'With dimensions',
+          user_id: 'user-1',
+          dimensions: {
+            role_fit: 9,
+            domain_fit: 8,
+            experience_fit: 9,
+            location_fit: 7,
+            upside: 6,
+          },
+          jobs: {
+            id: 'job-evaluation-dim',
+            title: 'Head of Product',
+            company: 'Acme',
+            location: 'Zurich',
+            url: 'https://example.com/dim',
+          },
+        },
+      ],
+      [{ id: 'user-1', threshold: 7, notifications_enabled: true }]
+    )
+
+    expect(digests[0].jobs[0].dimensions).toEqual({
+      role_fit: 9,
+      domain_fit: 8,
+      experience_fit: 9,
+      location_fit: 7,
+      upside: 6,
+    })
+  })
+
   it('builds digests from array-shaped job relations and skips null jobs', () => {
     const digests = buildUserDigests(
       [

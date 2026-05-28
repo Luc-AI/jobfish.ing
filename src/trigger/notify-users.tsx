@@ -2,7 +2,7 @@ import { render } from '@react-email/components'
 import * as Sentry from '@sentry/node'
 import { schedules } from '@trigger.dev/sdk'
 import { Resend } from 'resend'
-import { JobDigestEmail, truncateReasoning, type DigestJobItem } from '@/lib/email/job-digest'
+import { JobDigestEmail, type DigestJobItem } from '@/lib/email/job-digest'
 import { createServiceClient } from '@/lib/supabase/service'
 
 interface EvaluationJobRow {
@@ -95,7 +95,7 @@ export function buildUserDigests(
       location: job.location ?? null,
       score: evaluation.score,
       dimensions: evaluation.dimensions,
-      reasoning: truncateReasoning(evaluation.reasoning ?? ''),
+      reasoning: evaluation.reasoning ?? '',
       applyUrl: job.url,
     }
 

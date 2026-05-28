@@ -89,12 +89,17 @@ function HeroCard({
       }}
     >
       {showLabel && (
+        /*
+         * Rendered as literal uppercase rather than via CSS `text-transform`
+         * because the digest tests assert on the HTML output, and CSS transforms
+         * are invisible to string-based assertions. Email clients render this
+         * identically to a CSS-transformed string.
+         */
         <Text
           style={{
             fontSize: '11px',
             fontWeight: 700,
             color: '#d97706',
-            textTransform: 'uppercase',
             letterSpacing: '0.06em',
             margin: '0 0 8px',
           }}
@@ -275,12 +280,18 @@ function Footer({ appUrl, hasMatches }: { appUrl: string; hasMatches: boolean })
         </Section>
       )}
       <Hr style={{ borderColor: '#e7e5e4', margin: '24px 0 12px' }} />
+      {/*
+       * TODO: replace the unsubscribe link's href with a real one-click unsubscribe URL
+       * once we have one (e.g., signed token route or Resend webhook). For now it
+       * aliases to /notifications so the recipient at least reaches the page where
+       * they can disable digest emails. See spec § "Footer" in
+       * docs/superpowers/specs/2026-05-28-email-digest-redesign-design.md.
+       */}
       <Text style={{ fontSize: '12px', color: '#a8a29e', textAlign: 'center', margin: 0 }}>
         <Link href={`${appUrl}/notifications`} style={{ color: '#a8a29e' }}>
           Notification settings
         </Link>
         {' · '}
-        {/* TODO: wire real unsubscribe URL once available; for now point to settings. */}
         <Link href={`${appUrl}/notifications`} style={{ color: '#a8a29e' }}>
           Unsubscribe
         </Link>
