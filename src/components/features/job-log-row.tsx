@@ -18,7 +18,7 @@ interface JobLogRowProps {
   score: number
   chips: Chip[]
   isUnread: boolean
-  datePosted: string | null
+  syncedAt: string
   status: 'new' | 'saved' | 'applied' | 'dismissed'
   appliedAt?: string | null
   onPass?: () => void
@@ -42,7 +42,7 @@ export function JobLogRow({
   score,
   chips,
   isUnread,
-  datePosted,
+  syncedAt,
   status,
   appliedAt,
   onPass,
@@ -96,11 +96,9 @@ export function JobLogRow({
             {remoteType ? ` · ${remoteType}` : ''}
           </span>
 
-          {datePosted && (
-            <span className="mt-1 self-start inline-flex items-center rounded-full border border-[#e4e4e7] bg-white px-2 py-0.5 text-[11.5px] font-medium text-muted-foreground">
-              {formatRelativeTime(datePosted)}
-            </span>
-          )}
+          <span className="mt-1 self-start inline-flex items-center rounded-full border border-[#e4e4e7] bg-white px-2 py-0.5 text-[11.5px] font-medium text-muted-foreground">
+            {formatRelativeTime(syncedAt)}
+          </span>
 
           {(onPass || onSave) && (
             <div
