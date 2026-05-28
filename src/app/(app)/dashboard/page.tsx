@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation'
-import { Sparkles } from 'lucide-react'
+import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import {
   getJobFeed,
@@ -10,9 +10,16 @@ import {
   type FeedItem,
   type AppliedJob,
 } from '@/lib/supabase/queries'
+import {
+  parseScoreFilter,
+  parseTimeFilter,
+  scoreFilterToFloor,
+  type ScoreFilter,
+  type TimeFilter,
+} from '@/lib/feed/filters'
 import { LogTab } from '@/components/features/log-tab'
-import { LowConfidenceFold } from '@/components/features/low-confidence-fold'
 import { FeedClient } from '@/components/features/feed-client'
+import { FeedFilterBar } from '@/components/features/feed-filter-bar'
 import { AppliedTracker, type TrackerJob } from '@/components/features/applied-tracker'
 import { DismissedList, type DismissedJob } from '@/components/features/dismissed-list'
 import { Button } from '@/components/ui/button'
@@ -24,7 +31,7 @@ import {
 } from './actions'
 
 interface DashboardPageProps {
-  searchParams: Promise<{ tab?: string; page?: string }>
+  searchParams: Promise<{ tab?: string; score?: string; time?: string }>
 }
 
 function isValidTab(s: string | undefined): s is FeedTab {
@@ -37,6 +44,40 @@ function computeBucket(appliedAt: string | null): 'awaiting' | 'ghosted' {
   return daysSince > 14 ? 'ghosted' : 'awaiting'
 }
 
+function buildTitle(score: ScoreFilter, time: TimeFilter, count: number): string {
+  const noun = count === 1 ? 'job' : 'jobs'
+  const scorePhrase: Record<ScoreFilter, string> = {
+    hot: count === 1 ? 'hot job' : 'hot jobs',
+    threshold: `${noun} above threshold`,
+    eight: `${noun} scoring 8 or higher`,
+    seven: `${noun} scoring 7 or higher`,
+    all: noun,
+  }
+  const timePhrase = time === '7d' ? 'in the last 7 days' : 'all-time'
+  return `${count} ${scorePhrase[score]} ${timePhrase}`
+}
+
+interface EmptyCTA { label: string; href: string }
+
+function buildEmptyCTAs(
+  tab: FeedTab,
+  score: ScoreFilter,
+  time: TimeFilter
+): EmptyCTA[] {
+  const ctas: EmptyCTA[] = []
+  if (time === '7d') {
+    const params = new URLSearchParams({ tab, score, time: 'all' })
+    ctas.push({ label: 'All time', href: `?${params.toString()}` })
+  }
+  if (score !== 'all') {
+    const broader: ScoreFilter = score === 'hot' ? 'eight' : score === 'eight' ? 'seven' : 'all'
+    const params = new URLSearchParams({ tab, score: broader, time })
+    const label = broader === 'eight' ? '8+' : broader === 'seven' ? '7+' : 'All scores'
+    ctas.push({ label, href: `?${params.toString()}` })
+  }
+  return ctas
+}
+
 export default async function DashboardPage({ searchParams }: DashboardPageProps) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -44,46 +85,43 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
 
   const params = await searchParams
   const tab: FeedTab = isValidTab(params.tab) ? params.tab : 'all'
-  const page = Math.max(1, Number(params.page ?? 1))
+  const score: ScoreFilter = parseScoreFilter(params.score)
+  const time: TimeFilter = parseTimeFilter(params.time)
   const pageSize = 20
 
-  const [feedResult, prefsResult, appliedResult] = await Promise.all([
-    tab !== 'applied' ? getJobFeed(user.id, tab, page, pageSize) : Promise.resolve({ data: [] as FeedItem[], totalCount: 0, error: null }),
-    getPreferences(user.id),
+  const prefsResult = await getPreferences(user.id)
+  const userThreshold = prefsResult.data?.score_threshold ?? 7.0
+  const scoreFloor = scoreFilterToFloor(score, userThreshold)
+
+  const usesFilteredFeed = tab === 'all' || tab === 'saved'
+
+  const [feedResult, appliedResult] = await Promise.all([
+    usesFilteredFeed
+      ? getJobFeed(user.id, tab, 1, pageSize, scoreFloor, time)
+      : tab === 'dismissed'
+        ? getJobFeed(user.id, tab, 1, pageSize, 0, 'all')
+        : Promise.resolve({ data: [] as FeedItem[], totalCount: 0, error: null }),
     tab === 'applied' ? getAppliedJobs(user.id) : Promise.resolve({ data: [] as AppliedJob[], error: null }),
   ])
 
   const feed: FeedItem[] = feedResult.data ?? []
-  const threshold = prefsResult.data?.score_threshold ?? 7.0
+  const totalCount = feedResult.totalCount ?? 0
 
-  const unreadCount = tab === 'all' ? feed.filter((f: FeedItem) => f.is_unread).length : 0
-  const totalCount = feed.length
-
-  const aboveThreshold: FeedItem[] = tab === 'all' ? feed.filter((f: FeedItem) => f.score >= threshold) : feed
-  const belowThreshold: FeedItem[] = tab === 'all' ? feed.filter((f: FeedItem) => f.score < threshold) : []
-
-  const [savedResult, appliedCountResult, dismissedResult] = await Promise.all([
+  const [savedCountResult, appliedCountResult, dismissedCountResult] = await Promise.all([
     supabase.from('user_job_actions').select('*', { count: 'exact', head: true }).eq('user_id', user.id).eq('status', 'saved'),
     supabase.from('user_job_actions').select('*', { count: 'exact', head: true }).eq('user_id', user.id).eq('status', 'applied'),
     supabase.from('user_job_actions').select('*', { count: 'exact', head: true }).eq('user_id', user.id).eq('status', 'dismissed'),
   ])
 
   const tabs = [
-    { value: 'all', label: 'All', count: tab === 'all' ? totalCount : undefined },
-    { value: 'saved', label: 'Saved', count: savedResult.count ?? 0 },
+    { value: 'all', label: 'All' },
+    { value: 'saved', label: 'Saved', count: savedCountResult.count ?? 0 },
     { value: 'applied', label: 'Applied', count: appliedCountResult.count ?? 0 },
-    { value: 'dismissed', label: 'Dismissed', count: dismissedResult.count ?? 0 },
+    { value: 'dismissed', label: 'Dismissed', count: dismissedCountResult.count ?? 0 },
   ]
 
-  if (tab === 'all') {
-    await upsertLastVisit(user.id)
-  }
+  if (tab === 'all') await upsertLastVisit(user.id)
 
-  const subtitleParts: string[] = []
-  if (tab === 'all' && unreadCount > 0) subtitleParts.push(`${unreadCount} new since your last visit`)
-  if (tab === 'all') subtitleParts.push(`${totalCount} total this week`)
-
-  // Map feed items to DismissedJob shape for the Dismissed tab
   const dismissedJobs: DismissedJob[] = tab === 'dismissed'
     ? feed.map((f: FeedItem) => ({
         job_id: f.job_id,
@@ -95,7 +133,6 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
       }))
     : []
 
-  // Map AppliedJob to TrackerJob with bucket
   const trackerJobs: TrackerJob[] = (appliedResult.data ?? []).map((j: AppliedJob) => ({
     job_id: j.job_id,
     title: j.title,
@@ -109,59 +146,54 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   return (
     <div style={{ maxWidth: 816, margin: '0 auto', padding: '32px 16px', overflowX: 'hidden' }}>
       <div className="flex items-start justify-between mb-6">
-        <div>
-          <h1
-            className="font-bold leading-tight"
-            style={{ fontSize: 28, letterSpacing: '-0.6px' }}
-          >
-            Your job log
-          </h1>
-          {subtitleParts.length > 0 && (
-            <p className="text-sm text-muted-foreground mt-1">
-              {subtitleParts.join(' · ')}
-            </p>
-          )}
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" disabled>Search</Button>
-          <Button variant="outline" size="sm" disabled>Filters</Button>
-        </div>
+        <h1
+          className="font-bold leading-tight"
+          style={{ fontSize: 28, letterSpacing: '-0.6px' }}
+        >
+          Your job log
+        </h1>
+        <Button variant="outline" size="sm" disabled>Search</Button>
       </div>
 
       <LogTab tabs={tabs} activeTab={tab} />
 
-      {(tab === 'all' || tab === 'saved') && (
-        <div
-          className="flex items-center gap-1.5 mt-3 mb-6 text-muted-foreground"
-          style={{ fontSize: 12 }}
-        >
-          <Sparkles className="w-3.5 h-3.5" />
-          <span>Sorted for you · freshness × match score</span>
-        </div>
-      )}
+      {usesFilteredFeed && (
+        <>
+          <FeedFilterBar activeScore={score} activeTime={time} userThreshold={userThreshold} />
 
-      {(tab === 'all' || tab === 'saved') && (
-        <div className={tab === 'all' ? '' : 'mt-6'}>
-          <FeedClient
-            items={aboveThreshold}
-            onPass={passJobAction}
-            onSave={saveJobAction}
-            onMarkRead={markJobReadAction}
-            showSections={tab === 'all'}
-          />
+          <div className="text-sm text-muted-foreground mb-4">
+            {buildTitle(score, time, totalCount)}
+            {totalCount === 0 && (() => {
+              const ctas = buildEmptyCTAs(tab, score, time)
+              if (ctas.length === 0) return null
+              return (
+                <>
+                  {' '}Try{' '}
+                  {ctas.map((cta, i) => (
+                    <span key={cta.href}>
+                      <Link href={cta.href} className="underline">{cta.label}</Link>
+                      {i < ctas.length - 1 ? ' or ' : '.'}
+                    </span>
+                  ))}
+                </>
+              )
+            })()}
+          </div>
 
-          {tab === 'all' && belowThreshold.length > 0 && (
-            <LowConfidenceFold count={belowThreshold.length} threshold={threshold}>
-              <FeedClient
-                items={belowThreshold}
-                onPass={passJobAction}
-                onSave={saveJobAction}
-                onMarkRead={markJobReadAction}
-                showSections={false}
-              />
-            </LowConfidenceFold>
+          {totalCount > 0 && (
+            <FeedClient
+              initialItems={feed}
+              totalCount={totalCount}
+              pageSize={pageSize}
+              tab={tab}
+              scoreFilter={score}
+              timeFilter={time}
+              onPass={passJobAction}
+              onSave={saveJobAction}
+              onMarkRead={markJobReadAction}
+            />
           )}
-        </div>
+        </>
       )}
 
       {tab === 'applied' && (
