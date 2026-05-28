@@ -28,6 +28,7 @@ export type Database = {
           location: string | null
           url: string | null
           raw: Json
+          created_at: string
         }
         Insert: {
           id?: string
@@ -38,6 +39,7 @@ export type Database = {
           location?: string | null
           url?: string | null
           raw: Json | Record<string, unknown>
+          created_at?: string
         }
         Update: {
           id?: string
@@ -48,6 +50,7 @@ export type Database = {
           location?: string | null
           url?: string | null
           raw?: Json | Record<string, unknown>
+          created_at?: string
         }
         Relationships: []
       }
