@@ -60,7 +60,7 @@ export async function SearchResults({ userId, query }: SearchResultsProps) {
               score={item.score}
               chips={item.chips}
               isUnread={false}
-              notifiedAt={item.notified_at}
+              datePosted={item.jobs.date_posted ?? item.created_at}
               status={status}
               appliedAt={item.user_job_actions?.applied_at}
             />

@@ -596,7 +596,7 @@ export async function searchUserJobs(
     .select(`
       id, job_id, score, reasoning, dimensions, notified_at, created_at, read_at, chips,
       detailed_reasoning,
-      jobs!inner (id, title, company, location, url, source, remote_type, industry, synced_at, categories)
+      jobs!inner (id, title, company, location, url, source, remote_type, industry, synced_at, categories, date_posted)
     `)
     .eq('user_id', userId)
     .eq('jobs.is_active', true)
@@ -638,6 +638,7 @@ export async function searchUserJobs(
       id: string; title: string; company: string; location: string | null
       url: string; source: string; remote_type: string | null
       industry: string | null; synced_at: string; categories: string[] | null
+      date_posted: string | null
     }
   }
 
