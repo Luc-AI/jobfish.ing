@@ -36,7 +36,7 @@ That is the entire feature.
 | `src/trigger/scrape-apify-fallback.ts` | The scheduled task. Calls the lib, persists, emails. |
 | `src/trigger/lib/apify.ts` | Thin client: actor IDs, payload constants, fetch wrapper. |
 | `supabase/migrations/<ts>_apify_fallback_jobs.sql` | Creates the table + RLS. |
-| `.env.example` | Documents `APIFY_TOKEN`. |
+| `.env.example` | Documents `APIFY_API_TOKEN`. |
 
 ### Schedule
 
@@ -58,7 +58,7 @@ Exports:
 - `LINKEDIN_PAYLOAD` and `CAREER_SITE_PAYLOAD` constants (the JSONs the user provided).
 - `runActor(actorSlug, payload)` → calls `https://api.apify.com/v2/actors/<slug>/run-sync-get-dataset-items?token=<env>`, returns the parsed dataset array.
 
-Token comes from `process.env.APIFY_TOKEN`. The function throws on non-2xx so the task can catch per-actor failures.
+Token comes from `process.env.APIFY_API_TOKEN`. The function throws on non-2xx so the task can catch per-actor failures.
 
 ### Task flow (`src/trigger/scrape-apify-fallback.ts`)
 
@@ -169,8 +169,8 @@ Sent via the existing Resend client. Plain HTML (no React Email template — int
 
 ### Secrets
 
-- `APIFY_TOKEN` — new env var. Added to Vercel (preview + prod) and the Trigger.dev project. Documented in `.env.example`.
-- The token Luca pasted in chat (`apify_api_vlc...`) should be rotated in the Apify dashboard since it was shared in plaintext. Mentioned as a post-merge follow-up.
+- `APIFY_API_TOKEN` — already present in `.env.local`. Pushed to Vercel (production, preview/develop, development) and Trigger.dev (prod, dev). Documented in `.env.example`.
+- The token was shared in chat in plaintext (a truncated copy) — rotate in the Apify dashboard as a follow-up.
 
 ## Error handling
 
@@ -196,7 +196,7 @@ Sent via the existing Resend client. Plain HTML (no React Email template — int
 ## Rollout
 
 1. Land the migration in develop, run it locally, verify table exists.
-2. Add `APIFY_TOKEN` to Vercel + Trigger.dev environments.
+2. `APIFY_API_TOKEN` is already set in Vercel + Trigger.dev (done 2026-05-28).
 3. Deploy to staging, trigger the task manually from the Trigger.dev dashboard once, confirm email lands and rows appear.
 4. Merge to master; the cron then takes over.
 5. Rotate the Apify token (follow-up).
