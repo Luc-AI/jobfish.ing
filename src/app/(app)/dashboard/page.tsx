@@ -48,7 +48,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   const pageSize = 20
 
   const [feedResult, prefsResult, appliedResult] = await Promise.all([
-    tab !== 'applied' ? getJobFeed(user.id, tab, page, pageSize) : Promise.resolve({ data: [] as FeedItem[], error: null }),
+    tab !== 'applied' ? getJobFeed(user.id, tab, page, pageSize) : Promise.resolve({ data: [] as FeedItem[], totalCount: 0, error: null }),
     getPreferences(user.id),
     tab === 'applied' ? getAppliedJobs(user.id) : Promise.resolve({ data: [] as AppliedJob[], error: null }),
   ])
