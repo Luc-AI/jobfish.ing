@@ -53,6 +53,7 @@ export type FeedItem = {
     remote_type: string | null
     industry: string | null
     synced_at: string
+    date_posted: string | null
   }
   user_job_actions: {
     job_id: string
@@ -135,7 +136,7 @@ export async function getJobFeed(
       .select(`
         id, job_id, score, reasoning, dimensions, notified_at, created_at, read_at, chips,
         detailed_reasoning,
-        jobs!inner (id, title, company, location, url, source, remote_type, industry, synced_at, categories)
+        jobs!inner (id, title, company, location, url, source, remote_type, industry, synced_at, categories, date_posted)
       `)
       .eq('user_id', userId)
       .eq('jobs.is_active', true)
@@ -168,7 +169,7 @@ export async function getJobFeed(
       id: string; job_id: string; score: number; reasoning: string | null
       dimensions: unknown; notified_at: string | null; created_at: string
       read_at: string | null; chips: unknown; detailed_reasoning: unknown
-      jobs: { id: string; title: string; company: string; location: string | null; url: string; source: string; remote_type: string | null; industry: string | null; synced_at: string; categories: string[] | null }
+      jobs: { id: string; title: string; company: string; location: string | null; url: string; source: string; remote_type: string | null; industry: string | null; synced_at: string; categories: string[] | null; date_posted: string | null }
     }
 
     const rawEvals = (evaluations ?? []) as EvalRow[]
@@ -233,7 +234,7 @@ export async function getJobFeed(
       .select(`
         id, job_id, score, reasoning, dimensions, notified_at, created_at, read_at, chips,
         detailed_reasoning,
-        jobs!inner (id, title, company, location, url, source, remote_type, industry, synced_at)
+        jobs!inner (id, title, company, location, url, source, remote_type, industry, synced_at, date_posted)
       `)
       .eq('user_id', userId)
       .eq('jobs.is_active', true)
@@ -247,7 +248,7 @@ export async function getJobFeed(
       id: string; job_id: string; score: number; reasoning: string | null
       dimensions: unknown; notified_at: string | null; created_at: string
       read_at: string | null; chips: unknown; detailed_reasoning: unknown
-      jobs: unknown
+      jobs: { id: string; title: string; company: string; location: string | null; url: string; source: string; remote_type: string | null; industry: string | null; synced_at: string; date_posted: string | null }
     }
 
     const items: FeedItem[] = ((evaluations ?? []) as EvalRow[]).map(e => {
