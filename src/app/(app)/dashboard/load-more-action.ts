@@ -9,7 +9,7 @@ interface LoadMoreInput {
   tab: FeedTab
   score: ScoreFilter
   time: TimeFilter
-  offset: number
+  page: number
   pageSize: number
 }
 
@@ -22,8 +22,7 @@ export async function loadMoreFeed(input: LoadMoreInput): Promise<{ items: FeedI
   const userThreshold = prefs.data?.score_threshold ?? 7.0
   const scoreFloor = scoreFilterToFloor(input.score, userThreshold)
 
-  const page = Math.floor(input.offset / input.pageSize) + 1
-  const result = await getJobFeed(user.id, input.tab, page, input.pageSize, scoreFloor, input.time)
+  const result = await getJobFeed(user.id, input.tab, input.page, input.pageSize, scoreFloor, input.time)
 
   return { items: result.data }
 }
