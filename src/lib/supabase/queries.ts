@@ -537,6 +537,10 @@ export interface SearchOutcome {
 
 const SEARCH_RESULT_CAP = 50
 
+// Per-user row counts are small (hundreds, not thousands) — we fetch all evaluations and
+// actions for the user and filter in memory. Source rows = the user's evaluations enriched
+// with their actions: every actioned job has an evaluation, so this is equivalent to the
+// "evaluations ∪ actions" union the plan describes.
 export async function searchUserJobs(
   userId: string,
   query: string,
@@ -557,13 +561,20 @@ export async function searchUserJobs(
     .eq('user_id', userId)
     .eq('jobs.is_active', true)
 
-  if (evalErr) return { results: [], totalMatches: 0 }
+  if (evalErr) {
+    console.error('searchUserJobs: failed to fetch evaluations', evalErr)
+    return { results: [], totalMatches: 0 }
+  }
 
   // 2) All actions for this user (status + applied_at).
-  const { data: actions } = await supabase
+  const { data: actions, error: actionsErr } = await supabase
     .from('user_job_actions')
     .select('job_id, status, applied_at')
     .eq('user_id', userId)
+
+  if (actionsErr) {
+    console.error('searchUserJobs: failed to fetch actions', actionsErr)
+  }
 
   const actionsByJobId = new Map<
     string,
