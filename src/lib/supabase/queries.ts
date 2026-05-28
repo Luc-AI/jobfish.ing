@@ -69,6 +69,25 @@ function firstThreeWords(s: string): string {
   return s.split(/\s+/).slice(0, 3).join(' ')
 }
 
+// Defense in depth: Supabase queries with `.order(..., { foreignTable })` have
+// been observed returning duplicate rows in production despite UNIQUE(job_id, user_id).
+// Deduplicate by FeedItem.id before returning.
+function dedupById(items: FeedItem[]): FeedItem[] {
+  const seen = new Set<string>()
+  const out: FeedItem[] = []
+  for (const item of items) {
+    if (seen.has(item.id)) continue
+    seen.add(item.id)
+    out.push(item)
+  }
+  if (out.length !== items.length) {
+    console.warn(
+      `getJobFeed: dropped ${items.length - out.length} duplicate row(s) from feed`,
+    )
+  }
+  return out
+}
+
 export function deriveChipsFromReasoning(
   detailed_reasoning: { strengths?: string[]; concerns?: string[]; red_flags?: string[] } | null
 ): Chip[] {
@@ -220,7 +239,8 @@ export async function getJobFeed(
       }
     })
 
-    return { data: items, totalCount: count ?? items.length, error: null }
+    const unique = dedupById(items)
+    return { data: unique, totalCount: count ?? unique.length, error: null }
   }
 
   if (tab === 'saved' || tab === 'dismissed') {
@@ -296,7 +316,8 @@ export async function getJobFeed(
       }
     })
 
-    return { data: items, totalCount: count ?? items.length, error: null }
+    const unique = dedupById(items)
+    return { data: unique, totalCount: count ?? unique.length, error: null }
   }
 
   // applied tab — fetch actions first, sort by applied_at DESC in-memory
