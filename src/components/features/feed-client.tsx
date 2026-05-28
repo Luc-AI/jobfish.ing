@@ -88,7 +88,7 @@ export function FeedClient({
         score={item.score}
         chips={item.chips}
         isUnread={item.is_unread}
-        datePosted={item.jobs.date_posted ?? item.created_at}
+        syncedAt={item.jobs.synced_at}
         status={status}
         appliedAt={item.user_job_actions?.applied_at}
         onPass={() => {

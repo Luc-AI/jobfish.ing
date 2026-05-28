@@ -154,7 +154,7 @@ export async function getJobFeed(
       .eq('status', 'dismissed')
     const dismissedJobIds = dismissedActions?.map(a => a.job_id) ?? []
 
-    const sevenDaysAgoDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+    const sevenDaysAgoIso = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
 
     let query = supabase
       .from('job_evaluations')
@@ -166,12 +166,12 @@ export async function getJobFeed(
       .eq('user_id', userId)
       .eq('jobs.is_active', true)
       .gte('score', scoreFloor)
-      .order('date_posted', { foreignTable: 'jobs', ascending: false, nullsFirst: false })
+      .order('synced_at', { foreignTable: 'jobs', ascending: false })
       .order('created_at', { ascending: false })
       .range(offset, offset + pageSize - 1)
 
     if (timeFilter === '7d') {
-      query = query.gte('jobs.date_posted', sevenDaysAgoDate)
+      query = query.gte('jobs.synced_at', sevenDaysAgoIso)
     }
 
     if (dismissedJobIds.length > 0) {
@@ -259,7 +259,7 @@ export async function getJobFeed(
       (actions ?? []).map(a => [a.job_id!, { job_id: a.job_id!, status: a.status, applied_at: a.applied_at }])
     )
 
-    const sevenDaysAgoDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+    const sevenDaysAgoIso = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
 
     let query = supabase
       .from('job_evaluations')
@@ -272,12 +272,12 @@ export async function getJobFeed(
       .eq('jobs.is_active', true)
       .in('job_id', actionJobIds)
       .gte('score', scoreFloor)
-      .order('date_posted', { foreignTable: 'jobs', ascending: false, nullsFirst: false })
+      .order('synced_at', { foreignTable: 'jobs', ascending: false })
       .order('created_at', { ascending: false })
       .range(offset, offset + pageSize - 1)
 
     if (timeFilter === '7d') {
-      query = query.gte('jobs.date_posted', sevenDaysAgoDate)
+      query = query.gte('jobs.synced_at', sevenDaysAgoIso)
     }
 
     const { data: evaluations, error, count } = await query
