@@ -40,6 +40,7 @@ export const scrapeApifyFallbackTask = schedules.task({
       } else {
         const message = result.reason instanceof Error ? result.reason.message : String(result.reason)
         errors.push({ source, message })
+        console.error(`scrape-apify-fallback: ${source} actor failed: ${message}`)
         Sentry.captureException(result.reason, {
           tags: { task: 'scrape-apify-fallback', source },
         })
@@ -50,17 +51,21 @@ export const scrapeApifyFallbackTask = schedules.task({
       const supabase = createServiceClient()
       const { error } = await supabase.from('apify_fallback_jobs').insert(rows)
       if (error) {
+        console.error(`scrape-apify-fallback: insert failed: ${error.message}`)
         Sentry.captureException(new Error(`apify_fallback_jobs insert failed: ${error.message}`))
       }
     }
 
     await sendSummaryEmail({ rows, errors, fetchedAt }).catch(err => {
+      console.error(`scrape-apify-fallback: summary email failed: ${err instanceof Error ? err.message : String(err)}`)
       Sentry.captureException(err)
     })
 
     console.log(
       `scrape-apify-fallback: ${rows.length} jobs (linkedin: ${rows.filter(r => r.source === 'linkedin').length}, career_site: ${rows.filter(r => r.source === 'career_site').length}), errors: ${errors.length}`,
     )
+    // Trigger.dev may checkpoint/exit before @sentry/node's background flush completes.
+    await Sentry.flush(2000)
     return { inserted: rows.length, errors: errors.length }
   },
 })
@@ -76,6 +81,7 @@ async function sendSummaryEmail({ rows, errors, fetchedAt }: SummaryArgs) {
   if (!apiKey) throw new Error('RESEND_API_KEY environment variable is not set')
 
   const resend = new Resend(apiKey)
+  // en-CA happens to format dates as YYYY-MM-DD.
   const dateLabel = new Intl.DateTimeFormat('en-CA', {
     timeZone: 'Europe/Berlin',
     year: 'numeric',
@@ -146,5 +152,5 @@ function escapeHtml(s: string): string {
 }
 
 function escapeAttr(s: string): string {
-  return escapeHtml(s)
+  return escapeHtml(s).replace(/'/g, '&#39;')
 }

@@ -18,6 +18,7 @@ export type Database = {
   }
   public: {
     Tables: {
+      // MANUAL: re-add after `supabase gen types` regen (table not yet in remote schema).
       apify_fallback_jobs: {
         Row: {
           id: string
