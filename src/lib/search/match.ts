@@ -22,5 +22,5 @@ export function matchesAllTokens(row: Searchable, tokens: string[]): boolean {
     (row.location ?? '').toLowerCase(),
     (row.categories ?? []).join(' ').toLowerCase(),
   ].join(' ')
-  return tokens.every((t) => haystack.includes(t.toLowerCase()))
+  return tokens.every((t) => haystack.includes(t))
 }
