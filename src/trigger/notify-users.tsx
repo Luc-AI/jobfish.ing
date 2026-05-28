@@ -2,26 +2,15 @@ import { render } from '@react-email/components'
 import * as Sentry from '@sentry/node'
 import { schedules } from '@trigger.dev/sdk'
 import { Resend } from 'resend'
-import { JobDigestEmail, type DigestJobItem } from '@/lib/email/job-digest'
+import { JobDigestEmail, truncateReasoning, type DigestJobItem } from '@/lib/email/job-digest'
 import { createServiceClient } from '@/lib/supabase/service'
 
-const SOURCE_LABELS: Record<string, string> = {
-  linkedin: 'LinkedIn',
-  indeed: 'Indeed',
-  glassdoor: 'Glassdoor',
-  'jobs.ch': 'jobs.ch',
-}
-
-function formatSource(source: string): string {
-  return SOURCE_LABELS[source.toLowerCase()] ?? source
-}
-
 interface EvaluationJobRow {
+  id: string
   title: string
   company: string
   location: string | null
   url: string
-  source: string
 }
 
 interface EvaluationRow {
@@ -30,7 +19,13 @@ interface EvaluationRow {
   reasoning: string | null
   user_id: string
   created_at?: string
-  instant_alerted_at?: string | null
+  dimensions: {
+    role_fit: number
+    domain_fit: number
+    experience_fit: number
+    location_fit: number
+    upside: number
+  } | null
   jobs: EvaluationJobRow | EvaluationJobRow[] | null
 }
 
@@ -94,14 +89,14 @@ export function buildUserDigests(
 
     const existingDigest = digestsByUser.get(evaluation.user_id)
     const digestJob: DigestJobItem = {
+      jobId: job.id,
       jobTitle: job.title,
       company: job.company,
       location: job.location ?? null,
       score: evaluation.score,
-      reasoning: evaluation.reasoning ?? '',
+      dimensions: evaluation.dimensions,
+      reasoning: truncateReasoning(evaluation.reasoning ?? ''),
       applyUrl: job.url,
-      source: formatSource(job.source),
-      isHotPick: !!evaluation.instant_alerted_at,
     }
 
     if (existingDigest) {
@@ -138,6 +133,7 @@ export const notifyUsersTask = schedules.task({
       throw new Error('RESEND_API_KEY environment variable is not set')
     }
 
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://jobfish.ing'
     const resend = new Resend(apiKey)
     const supabase = createServiceClient()
 
@@ -149,13 +145,13 @@ export const notifyUsersTask = schedules.task({
         reasoning,
         user_id,
         created_at,
-        instant_alerted_at,
+        dimensions,
         jobs (
+          id,
           title,
           company,
           location,
-          url,
-          source
+          url
         )
       `)
       .is('notified_at', null)
@@ -211,7 +207,7 @@ export const notifyUsersTask = schedules.task({
           continue
         }
 
-        const html = await render(<JobDigestEmail jobs={digest.jobs} />)
+        const html = await render(<JobDigestEmail jobs={digest.jobs} appUrl={appUrl} />)
 
         const { error: sendError } = await resend.emails.send({
           from: process.env.RESEND_FROM_EMAIL ?? 'jobs@jobfish.ing',

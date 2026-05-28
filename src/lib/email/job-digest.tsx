@@ -6,6 +6,7 @@ import {
   Heading,
   Hr,
   Html,
+  Link,
   Preview,
   Section,
   Text,
@@ -23,19 +24,28 @@ export function truncateReasoning(input: string): string {
   return `${cut.trimEnd()}…`
 }
 
+export interface DigestDimensions {
+  role_fit: number
+  domain_fit: number
+  experience_fit: number
+  location_fit: number
+  upside: number
+}
+
 export interface DigestJobItem {
+  jobId: string
   jobTitle: string
   company: string
   location: string | null
   score: number
+  dimensions: DigestDimensions | null
   reasoning: string
   applyUrl: string
-  source: string
-  isHotPick?: boolean
 }
 
 interface JobDigestEmailProps {
   jobs: DigestJobItem[]
+  appUrl: string
 }
 
 function scoreColor(score: number): string {
@@ -44,16 +54,250 @@ function scoreColor(score: number): string {
   return '#b91c1c'
 }
 
-function headingForCount(count: number): string {
-  if (count === 0) return 'No new job matches this morning'
-  return `${count} new job match${count === 1 ? '' : 'es'} this morning`
+function formatDimensions(d: DigestDimensions): string {
+  return [
+    `Role ${Math.round(d.role_fit)}`,
+    `Dom ${Math.round(d.domain_fit)}`,
+    `Exp ${Math.round(d.experience_fit)}`,
+    `Loc ${Math.round(d.location_fit)}`,
+    `Upside ${Math.round(d.upside)}`,
+  ].join(' · ')
 }
 
-export function JobDigestEmail({ jobs }: JobDigestEmailProps) {
-  const firstJob = jobs[0]
-  const preview = firstJob
-    ? `${headingForCount(jobs.length)}: ${firstJob.jobTitle} at ${firstJob.company}`
-    : 'No new job matches this morning'
+function headerCount(count: number): string {
+  if (count === 0) return 'no matches this morning'
+  return `${count} match${count === 1 ? '' : 'es'} this morning`
+}
+
+function HeroCard({
+  job,
+  appUrl,
+  showLabel,
+}: {
+  job: DigestJobItem
+  appUrl: string
+  showLabel: boolean
+}) {
+  return (
+    <Section
+      style={{
+        backgroundColor: '#fafaf9',
+        borderRadius: '8px',
+        border: '1px solid #e7e5e4',
+        padding: '20px',
+        margin: '0 0 24px',
+      }}
+    >
+      {showLabel && (
+        <Text
+          style={{
+            fontSize: '11px',
+            fontWeight: 700,
+            color: '#d97706',
+            textTransform: 'uppercase',
+            letterSpacing: '0.06em',
+            margin: '0 0 8px',
+          }}
+        >
+          ★ HIGHEST SCORE
+        </Text>
+      )}
+
+      <table width="100%" cellPadding={0} cellSpacing={0} role="presentation">
+        <tr>
+          <td style={{ verticalAlign: 'top' }}>
+            <Heading
+              style={{
+                fontSize: '18px',
+                fontWeight: 700,
+                color: '#1c1917',
+                margin: '0 0 4px',
+                letterSpacing: '-0.02em',
+              }}
+            >
+              {job.jobTitle}
+            </Heading>
+            <Text style={{ fontSize: '14px', color: '#57534e', margin: '0' }}>
+              {job.company}
+              {job.location ? ` · ${job.location}` : ''}
+            </Text>
+          </td>
+          <td
+            style={{
+              verticalAlign: 'top',
+              textAlign: 'right',
+              fontSize: '24px',
+              fontWeight: 800,
+              color: scoreColor(job.score),
+              letterSpacing: '-0.03em',
+              whiteSpace: 'nowrap',
+              paddingLeft: '12px',
+            }}
+          >
+            {job.score.toFixed(1)}
+          </td>
+        </tr>
+      </table>
+
+      {job.dimensions && (
+        <Text
+          style={{
+            fontSize: '13px',
+            color: '#78716c',
+            margin: '14px 0 8px',
+            fontVariantNumeric: 'tabular-nums',
+          }}
+        >
+          {formatDimensions(job.dimensions)}
+        </Text>
+      )}
+
+      {job.reasoning && (
+        <Text style={{ fontSize: '14px', color: '#44403c', lineHeight: '1.5', margin: '0 0 18px' }}>
+          {truncateReasoning(job.reasoning)}
+        </Text>
+      )}
+
+      <table cellPadding={0} cellSpacing={0} role="presentation">
+        <tr>
+          <td style={{ paddingRight: '10px' }}>
+            <Button
+              href={`${appUrl}/dashboard/jobs/${job.jobId}`}
+              style={{
+                backgroundColor: '#1c1917',
+                color: '#ffffff',
+                padding: '10px 18px',
+                borderRadius: '6px',
+                fontSize: '14px',
+                fontWeight: 600,
+                textDecoration: 'none',
+              }}
+            >
+              Open in dashboard →
+            </Button>
+          </td>
+          <td>
+            <Button
+              href={job.applyUrl}
+              style={{
+                backgroundColor: '#ffffff',
+                color: '#1c1917',
+                padding: '10px 18px',
+                borderRadius: '6px',
+                fontSize: '14px',
+                fontWeight: 600,
+                textDecoration: 'none',
+                border: '1px solid #d6d3d1',
+              }}
+            >
+              Apply
+            </Button>
+          </td>
+        </tr>
+      </table>
+    </Section>
+  )
+}
+
+function TailRow({ job, appUrl }: { job: DigestJobItem; appUrl: string }) {
+  const dashboardHref = `${appUrl}/dashboard/jobs/${job.jobId}`
+  return (
+    <table
+      width="100%"
+      cellPadding={0}
+      cellSpacing={0}
+      role="presentation"
+      style={{ borderBottom: '1px solid #e7e5e4' }}
+    >
+      <tr>
+        <td style={{ padding: '12px 0' }}>
+          <Link
+            href={dashboardHref}
+            style={{
+              fontSize: '14px',
+              color: '#1c1917',
+              textDecoration: 'none',
+              fontVariantNumeric: 'tabular-nums',
+            }}
+          >
+            <span
+              style={{
+                fontWeight: 700,
+                color: scoreColor(job.score),
+                marginRight: '10px',
+              }}
+            >
+              {job.score.toFixed(1)}
+            </span>
+            <span>
+              {job.jobTitle}
+              <span style={{ color: '#78716c' }}>
+                {' · '}
+                {job.company}
+                {job.location ? ` · ${job.location}` : ''}
+              </span>
+            </span>
+          </Link>
+        </td>
+        <td style={{ textAlign: 'right', whiteSpace: 'nowrap', padding: '12px 0' }}>
+          <Link
+            href={job.applyUrl}
+            style={{ fontSize: '13px', color: '#57534e', textDecoration: 'underline' }}
+          >
+            Apply ↗
+          </Link>
+        </td>
+      </tr>
+    </table>
+  )
+}
+
+function Footer({ appUrl, hasMatches }: { appUrl: string; hasMatches: boolean }) {
+  return (
+    <>
+      {hasMatches && (
+        <Section style={{ textAlign: 'center', margin: '24px 0 16px' }}>
+          <Button
+            href={`${appUrl}/dashboard`}
+            style={{
+              backgroundColor: '#ffffff',
+              color: '#1c1917',
+              padding: '10px 18px',
+              borderRadius: '6px',
+              fontSize: '14px',
+              fontWeight: 600,
+              textDecoration: 'none',
+              border: '1px solid #d6d3d1',
+            }}
+          >
+            View all matches in dashboard →
+          </Button>
+        </Section>
+      )}
+      <Hr style={{ borderColor: '#e7e5e4', margin: '24px 0 12px' }} />
+      <Text style={{ fontSize: '12px', color: '#a8a29e', textAlign: 'center', margin: 0 }}>
+        <Link href={`${appUrl}/notifications`} style={{ color: '#a8a29e' }}>
+          Notification settings
+        </Link>
+        {' · '}
+        {/* TODO: wire real unsubscribe URL once available; for now point to settings. */}
+        <Link href={`${appUrl}/notifications`} style={{ color: '#a8a29e' }}>
+          Unsubscribe
+        </Link>
+      </Text>
+    </>
+  )
+}
+
+export function JobDigestEmail({ jobs, appUrl }: JobDigestEmailProps) {
+  const sortedJobs = [...jobs].sort((a, b) => b.score - a.score)
+  const hero = sortedJobs[0]
+  const tail = sortedJobs.slice(1)
+  const showHeroLabel = sortedJobs.length >= 2
+
+  const preview = hero
+    ? `${headerCount(sortedJobs.length)}: ${hero.jobTitle} at ${hero.company}`
+    : 'No matches landed today'
 
   return (
     <Html>
@@ -70,110 +314,42 @@ export function JobDigestEmail({ jobs }: JobDigestEmailProps) {
             padding: '32px',
           }}
         >
-          <Text style={{ fontSize: '12px', color: '#a8a29e', margin: '0 0 12px' }}>
-            jobfishing · jobs find you
+          <Text style={{ fontSize: '13px', color: '#78716c', margin: '0 0 4px' }}>
+            jobfishing · {headerCount(sortedJobs.length)}
           </Text>
+          <Hr style={{ borderColor: '#e7e5e4', margin: '12px 0 24px' }} />
 
-          <Heading
-            style={{
-              fontSize: '22px',
-              fontWeight: '700',
-              color: '#1c1917',
-              margin: '0 0 20px',
-              letterSpacing: '-0.02em',
-            }}
-          >
-            {headingForCount(jobs.length)}
-          </Heading>
-
-          {jobs.length === 0 ? (
+          {sortedJobs.length === 0 ? (
             <Text style={{ fontSize: '15px', color: '#57534e', margin: 0 }}>
-              No matches landed today, but we'll keep looking.
+              No matches landed today, but we&rsquo;ll keep looking.
             </Text>
           ) : (
-            jobs.map((job, index) => (
-              <Section
-                key={`${job.jobTitle}-${job.company}-${index}`}
-                style={{
-                  backgroundColor: '#fafaf9',
-                  borderRadius: '6px',
-                  padding: '16px',
-                  margin: index === jobs.length - 1 ? 0 : '0 0 16px',
-                  border: '1px solid #e7e5e4',
-                }}
-              >
-                {job.isHotPick && (
-                  <Text style={{ fontSize: '11px', fontWeight: '700', color: '#d97706', textTransform: 'uppercase', letterSpacing: '0.05em', margin: '0 0 6px' }}>
-                    ★ Hot pick
-                  </Text>
-                )}
-                <Heading
-                  style={{
-                    fontSize: '18px',
-                    fontWeight: '700',
-                    color: '#1c1917',
-                    margin: '0 0 4px',
-                    letterSpacing: '-0.02em',
-                  }}
-                >
-                  {job.jobTitle}
-                </Heading>
+            <>
+              <HeroCard job={hero} appUrl={appUrl} showLabel={showHeroLabel} />
 
-                <Text style={{ fontSize: '14px', color: '#57534e', margin: '0 0 12px' }}>
-                  {job.company}
-                  {job.location ? ` · ${job.location}` : ''}
-                  {' · '}
-                  <span style={{ color: '#a8a29e', fontSize: '13px' }}>{job.source}</span>
-                </Text>
-
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
-                  <Text style={{ margin: 0, fontSize: '13px', color: '#78716c', fontWeight: '600' }}>
-                    Match score
-                  </Text>
+              {tail.length > 0 && (
+                <>
                   <Text
                     style={{
-                      margin: 0,
-                      fontSize: '24px',
-                      fontWeight: '800',
-                      color: scoreColor(job.score),
-                      letterSpacing: '-0.03em',
+                      fontSize: '13px',
+                      fontWeight: 600,
+                      color: '#78716c',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.05em',
+                      margin: '0 0 4px',
                     }}
                   >
-                    {job.score.toFixed(1)}
+                    Also matched today
                   </Text>
-                </div>
-
-                <Text
-                  style={{
-                    fontSize: '14px',
-                    color: '#57534e',
-                    fontStyle: 'italic',
-                    lineHeight: '1.6',
-                    margin: '0 0 18px',
-                  }}
-                >
-                  &ldquo;{job.reasoning}&rdquo;
-                </Text>
-
-                <Hr style={{ borderColor: '#e7e5e4', margin: '0 0 18px' }} />
-
-                <Button
-                  href={job.applyUrl}
-                  style={{
-                    backgroundColor: '#1c1917',
-                    color: '#ffffff',
-                    padding: '12px 24px',
-                    borderRadius: '6px',
-                    fontSize: '14px',
-                    fontWeight: '600',
-                    textDecoration: 'none',
-                  }}
-                >
-                  Apply now →
-                </Button>
-              </Section>
-            ))
+                  {tail.map(job => (
+                    <TailRow key={job.jobId} job={job} appUrl={appUrl} />
+                  ))}
+                </>
+              )}
+            </>
           )}
+
+          <Footer appUrl={appUrl} hasMatches={sortedJobs.length > 0} />
         </Container>
       </Body>
     </Html>
