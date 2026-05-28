@@ -4,6 +4,7 @@ import type { Database } from './types'
 import { deriveTargetCategories } from '@/trigger/lib/pre-filter'
 import type { RoleSelection } from './types'
 import type { TimeFilter } from '@/lib/feed/filters'
+import { parseTokens, matchesAllTokens } from '@/lib/search/match'
 
 type ProfileUpdate = Database['public']['Tables']['profiles']['Update']
 type PreferencesUpdate = Database['public']['Tables']['preferences']['Update']
@@ -55,6 +56,7 @@ export type FeedItem = {
     industry: string | null
     synced_at: string
     date_posted: string | null
+    categories: string[] | null
   }
   user_job_actions: {
     job_id: string
@@ -545,4 +547,125 @@ export async function getJobDetail(userId: string, jobId: string): Promise<JobDe
       : null,
     action: action ? { status: action.status as 'saved' | 'dismissed' | 'applied', applied_at: action.applied_at } : null,
   }
+}
+
+export interface SearchOutcome {
+  results: FeedItem[]
+  totalMatches: number
+}
+
+const SEARCH_RESULT_CAP = 50
+
+// Per-user row counts are small (hundreds, not thousands) — we fetch all evaluations and
+// actions for the user and filter in memory. Source rows = the user's evaluations enriched
+// with their actions: every actioned job has an evaluation, so this is equivalent to the
+// "evaluations ∪ actions" union the plan describes.
+export async function searchUserJobs(
+  userId: string,
+  query: string,
+): Promise<SearchOutcome> {
+  const tokens = parseTokens(query)
+  if (tokens.length === 0) return { results: [], totalMatches: 0 }
+
+  const supabase = await createClient()
+
+  // 1) All evaluations for this user joined to active jobs.
+  const { data: evaluations, error: evalErr } = await supabase
+    .from('job_evaluations')
+    .select(`
+      id, job_id, score, reasoning, dimensions, notified_at, created_at, read_at, chips,
+      detailed_reasoning,
+      jobs!inner (id, title, company, location, url, source, remote_type, industry, synced_at, categories)
+    `)
+    .eq('user_id', userId)
+    .eq('jobs.is_active', true)
+
+  if (evalErr) {
+    console.error('searchUserJobs: failed to fetch evaluations', evalErr)
+    return { results: [], totalMatches: 0 }
+  }
+
+  // 2) All actions for this user (status + applied_at).
+  const { data: actions, error: actionsErr } = await supabase
+    .from('user_job_actions')
+    .select('job_id, status, applied_at')
+    .eq('user_id', userId)
+
+  if (actionsErr) {
+    console.error('searchUserJobs: failed to fetch actions', actionsErr)
+  }
+
+  const actionsByJobId = new Map<
+    string,
+    { job_id: string; status: string; applied_at: string | null }
+  >()
+  for (const a of actions ?? []) {
+    if (a.job_id) {
+      actionsByJobId.set(a.job_id, {
+        job_id: a.job_id,
+        status: a.status,
+        applied_at: a.applied_at,
+      })
+    }
+  }
+
+  type EvalRow = {
+    id: string; job_id: string; score: number; reasoning: string | null
+    dimensions: unknown; notified_at: string | null; created_at: string
+    read_at: string | null; chips: unknown; detailed_reasoning: unknown
+    jobs: {
+      id: string; title: string; company: string; location: string | null
+      url: string; source: string; remote_type: string | null
+      industry: string | null; synced_at: string; categories: string[] | null
+    }
+  }
+
+  // 3) Build FeedItem list (one eval row per (user_id, job_id) — implicit dedup).
+  const allItems: FeedItem[] = ((evaluations ?? []) as EvalRow[]).map((e) => {
+    const action = actionsByJobId.get(e.job_id) ?? null
+    const chips: Chip[] =
+      Array.isArray(e.chips) && e.chips.length > 0
+        ? (e.chips as Chip[])
+        : deriveChipsFromReasoning(
+            e.detailed_reasoning as {
+              strengths?: string[]
+              concerns?: string[]
+              red_flags?: string[]
+            } | null,
+          )
+
+    return {
+      id: e.id,
+      job_id: e.job_id,
+      score: e.score,
+      reasoning: e.reasoning,
+      dimensions: e.dimensions,
+      notified_at: e.notified_at,
+      created_at: e.created_at,
+      read_at: e.read_at,
+      chips,
+      is_unread: false,
+      jobs: e.jobs as FeedItem['jobs'],
+      user_job_actions: action,
+    }
+  })
+
+  // 4) Filter by AND-of-tokens match across title/company/location/categories.
+  const matched = allItems.filter((item) =>
+    matchesAllTokens(
+      {
+        title: item.jobs.title,
+        company: item.jobs.company,
+        location: item.jobs.location,
+        categories: item.jobs.categories ?? null,
+      },
+      tokens,
+    ),
+  )
+
+  // 5) Sort by synced_at DESC, then cap.
+  matched.sort((a, b) => b.jobs.synced_at.localeCompare(a.jobs.synced_at))
+  const results = matched.slice(0, SEARCH_RESULT_CAP)
+
+  return { results, totalMatches: matched.length }
 }

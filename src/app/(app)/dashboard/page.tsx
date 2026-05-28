@@ -1,3 +1,4 @@
+import { Suspense } from 'react'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
@@ -22,7 +23,8 @@ import { FeedClient } from '@/components/features/feed-client'
 import { FeedFilterBar } from '@/components/features/feed-filter-bar'
 import { AppliedTracker, type TrackerJob } from '@/components/features/applied-tracker'
 import { DismissedList, type DismissedJob } from '@/components/features/dismissed-list'
-import { Button } from '@/components/ui/button'
+import { SearchBar } from '@/components/features/search-bar'
+import { SearchResults } from '@/components/features/search-results'
 import {
   passJobAction,
   saveJobAction,
@@ -31,7 +33,7 @@ import {
 } from './actions'
 
 interface DashboardPageProps {
-  searchParams: Promise<{ tab?: string; score?: string; time?: string }>
+  searchParams: Promise<{ tab?: string; score?: string; time?: string; q?: string }>
 }
 
 function isValidTab(s: string | undefined): s is FeedTab {
@@ -84,34 +86,46 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   if (!user) redirect('/login')
 
   const params = await searchParams
+  const rawQuery = (params.q ?? '').trim()
+  const isSearching = rawQuery.length >= 2
   const tab: FeedTab = isValidTab(params.tab) ? params.tab : 'all'
   const score: ScoreFilter = parseScoreFilter(params.score)
   const time: TimeFilter = parseTimeFilter(params.time)
   const pageSize = 20
 
-  const prefsResult = await getPreferences(user.id)
+  // Search is global — short-circuit per-tab fetches when searching.
+  const prefsResult = isSearching
+    ? { data: null }
+    : await getPreferences(user.id)
   const userThreshold = prefsResult.data?.score_threshold ?? 7.0
   const scoreFloor = scoreFilterToFloor(score, userThreshold)
 
-  const usesFilteredFeed = tab === 'all' || tab === 'saved'
+  const usesFilteredFeed = !isSearching && (tab === 'all' || tab === 'saved')
 
-  const [feedResult, appliedResult] = await Promise.all([
-    usesFilteredFeed
-      ? getJobFeed(user.id, tab, 1, pageSize, scoreFloor, time)
-      : tab === 'dismissed'
-        ? getJobFeed(user.id, tab, 1, pageSize, 0, 'all')
-        : Promise.resolve({ data: [] as FeedItem[], totalCount: 0, error: null }),
-    tab === 'applied' ? getAppliedJobs(user.id) : Promise.resolve({ data: [] as AppliedJob[], error: null }),
-  ])
+  const [feedResult, appliedResult] = isSearching
+    ? [
+        { data: [] as FeedItem[], totalCount: 0, error: null },
+        { data: [] as AppliedJob[], error: null },
+      ]
+    : await Promise.all([
+        usesFilteredFeed
+          ? getJobFeed(user.id, tab, 1, pageSize, scoreFloor, time)
+          : tab === 'dismissed'
+            ? getJobFeed(user.id, tab, 1, pageSize, 0, 'all')
+            : Promise.resolve({ data: [] as FeedItem[], totalCount: 0, error: null }),
+        tab === 'applied' ? getAppliedJobs(user.id) : Promise.resolve({ data: [] as AppliedJob[], error: null }),
+      ])
 
   const feed: FeedItem[] = feedResult.data ?? []
   const totalCount = feedResult.totalCount ?? 0
 
-  const [savedCountResult, appliedCountResult, dismissedCountResult] = await Promise.all([
-    supabase.from('user_job_actions').select('*', { count: 'exact', head: true }).eq('user_id', user.id).eq('status', 'saved'),
-    supabase.from('user_job_actions').select('*', { count: 'exact', head: true }).eq('user_id', user.id).eq('status', 'applied'),
-    supabase.from('user_job_actions').select('*', { count: 'exact', head: true }).eq('user_id', user.id).eq('status', 'dismissed'),
-  ])
+  const [savedCountResult, appliedCountResult, dismissedCountResult] = isSearching
+    ? [{ count: 0 }, { count: 0 }, { count: 0 }]
+    : await Promise.all([
+        supabase.from('user_job_actions').select('*', { count: 'exact', head: true }).eq('user_id', user.id).eq('status', 'saved'),
+        supabase.from('user_job_actions').select('*', { count: 'exact', head: true }).eq('user_id', user.id).eq('status', 'applied'),
+        supabase.from('user_job_actions').select('*', { count: 'exact', head: true }).eq('user_id', user.id).eq('status', 'dismissed'),
+      ])
 
   const tabs = [
     { value: 'all', label: 'All' },
@@ -120,7 +134,9 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
     { value: 'dismissed', label: 'Dismissed', count: dismissedCountResult.count ?? 0 },
   ]
 
-  if (tab === 'all') await upsertLastVisit(user.id)
+  if (tab === 'all' && !isSearching) {
+    await upsertLastVisit(user.id)
+  }
 
   const dismissedJobs: DismissedJob[] = tab === 'dismissed'
     ? feed.map((f: FeedItem) => ({
@@ -145,70 +161,90 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
 
   return (
     <div style={{ maxWidth: 816, margin: '0 auto', padding: '32px 16px', overflowX: 'hidden' }}>
-      <div className="flex items-start justify-between mb-6">
-        <h1
-          className="font-bold leading-tight"
-          style={{ fontSize: 28, letterSpacing: '-0.6px' }}
-        >
-          Your job log
-        </h1>
-        <Button variant="outline" size="sm" disabled>Search</Button>
+      <div className="flex items-start justify-between gap-3 mb-6">
+        <div className={isSearching ? 'hidden sm:block' : ''}>
+          <h1
+            className="font-bold leading-tight"
+            style={{ fontSize: 28, letterSpacing: '-0.6px' }}
+          >
+            Your job log
+          </h1>
+        </div>
+        <div className={isSearching ? 'flex-1 sm:flex-none w-full sm:w-auto' : ''}>
+          <SearchBar initiallyOpen={isSearching} initialQuery={rawQuery} />
+        </div>
       </div>
 
-      <LogTab tabs={tabs} activeTab={tab} />
-
-      {usesFilteredFeed && (
+      {isSearching ? (
+        <div className="mt-6">
+          <Suspense
+            fallback={
+              <p className="text-center text-muted-foreground py-12 text-sm">
+                Searching…
+              </p>
+            }
+          >
+            <SearchResults userId={user.id} query={rawQuery} />
+          </Suspense>
+        </div>
+      ) : (
         <>
-          <FeedFilterBar activeScore={score} activeTime={time} userThreshold={userThreshold} />
+          <LogTab tabs={tabs} activeTab={tab} />
 
-          <div className="text-sm text-muted-foreground mb-4">
-            {buildTitle(score, time, totalCount)}
-            {totalCount === 0 && (() => {
-              const ctas = buildEmptyCTAs(tab, score, time)
-              if (ctas.length === 0) return null
-              return (
-                <>
-                  {' '}Try{' '}
-                  {ctas.map((cta, i) => (
-                    <span key={cta.href}>
-                      <Link href={cta.href} className="underline">{cta.label}</Link>
-                      {i < ctas.length - 1 ? ' or ' : '.'}
-                    </span>
-                  ))}
-                </>
-              )
-            })()}
-          </div>
+          {usesFilteredFeed && (
+            <>
+              <FeedFilterBar activeScore={score} activeTime={time} userThreshold={userThreshold} />
 
-          {totalCount > 0 && (
-            <FeedClient
-              initialItems={feed}
-              totalCount={totalCount}
-              pageSize={pageSize}
-              tab={tab}
-              scoreFilter={score}
-              timeFilter={time}
-              onPass={passJobAction}
-              onSave={saveJobAction}
-              onMarkRead={markJobReadAction}
-            />
+              <div className="text-sm text-muted-foreground mb-4">
+                {buildTitle(score, time, totalCount)}
+                {totalCount === 0 && (() => {
+                  const ctas = buildEmptyCTAs(tab, score, time)
+                  if (ctas.length === 0) return null
+                  return (
+                    <>
+                      {' '}Try{' '}
+                      {ctas.map((cta, i) => (
+                        <span key={cta.href}>
+                          <Link href={cta.href} className="underline">{cta.label}</Link>
+                          {i < ctas.length - 1 ? ' or ' : '.'}
+                        </span>
+                      ))}
+                    </>
+                  )
+                })()}
+              </div>
+
+              {totalCount > 0 && (
+                <FeedClient
+                  initialItems={feed}
+                  totalCount={totalCount}
+                  pageSize={pageSize}
+                  tab={tab}
+                  scoreFilter={score}
+                  timeFilter={time}
+                  onPass={passJobAction}
+                  onSave={saveJobAction}
+                  onMarkRead={markJobReadAction}
+                />
+              )}
+            </>
+          )}
+
+          {tab === 'applied' && (
+            <div className="mt-6">
+              <AppliedTracker jobs={trackerJobs} />
+            </div>
+          )}
+
+          {tab === 'dismissed' && (
+            <div className="mt-6">
+              <DismissedList
+                jobs={dismissedJobs}
+                onRestore={deleteJobAction}
+              />
+            </div>
           )}
         </>
-      )}
-
-      {tab === 'applied' && (
-        <div className="mt-6">
-          <AppliedTracker jobs={trackerJobs} />
-        </div>
-      )}
-
-      {tab === 'dismissed' && (
-        <div className="mt-6">
-          <DismissedList
-            jobs={dismissedJobs}
-            onRestore={deleteJobAction}
-          />
-        </div>
       )}
     </div>
   )
