@@ -18,6 +18,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      apify_fallback_jobs: {
+        Row: {
+          id: string
+          source: string
+          fetched_at: string
+          title: string | null
+          company: string | null
+          location: string | null
+          url: string | null
+          raw: Json
+        }
+        Insert: {
+          id?: string
+          source: string
+          fetched_at: string
+          title?: string | null
+          company?: string | null
+          location?: string | null
+          url?: string | null
+          raw: Json | Record<string, unknown>
+        }
+        Update: {
+          id?: string
+          source?: string
+          fetched_at?: string
+          title?: string | null
+          company?: string | null
+          location?: string | null
+          url?: string | null
+          raw?: Json | Record<string, unknown>
+        }
+        Relationships: []
+      }
       job_evaluations: {
         Row: {
           chips: Json | null
