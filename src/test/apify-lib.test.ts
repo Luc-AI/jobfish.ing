@@ -1,6 +1,6 @@
 // src/test/apify-lib.test.ts
-import { describe, expect, it } from 'vitest'
-import { firstString, normalizeItem } from '@/trigger/lib/apify'
+import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest'
+import { firstString, normalizeItem, runActor } from '@/trigger/lib/apify'
 
 describe('firstString', () => {
   it('returns the first non-empty string match by candidate key order', () => {
@@ -84,5 +84,49 @@ describe('normalizeItem', () => {
     }
     const row = normalizeItem('linkedin', item, '2026-05-28T04:00:00.000Z')
     expect(row.url).toBe('https://apply.example.com/x')
+  })
+})
+
+describe('runActor', () => {
+  let savedToken: string | undefined
+
+  beforeEach(() => {
+    savedToken = process.env.APIFY_API_TOKEN
+  })
+
+  afterEach(() => {
+    if (savedToken === undefined) {
+      delete process.env.APIFY_API_TOKEN
+    } else {
+      process.env.APIFY_API_TOKEN = savedToken
+    }
+    vi.unstubAllGlobals()
+  })
+
+  it('throws when APIFY_API_TOKEN is not set', async () => {
+    delete process.env.APIFY_API_TOKEN
+    await expect(runActor('any-slug', {})).rejects.toThrow('APIFY_API_TOKEN is not set')
+  })
+
+  it('throws on non-2xx response', async () => {
+    process.env.APIFY_API_TOKEN = 'test-token'
+    vi.stubGlobal('fetch', vi.fn(async () => ({
+      ok: false,
+      status: 500,
+      statusText: 'Internal Server Error',
+      text: async () => 'upstream boom',
+    })))
+    await expect(runActor('my-actor-slug', {})).rejects.toThrow(/my-actor-slug/)
+    await expect(runActor('my-actor-slug', {})).rejects.toThrow(/500/)
+    await expect(runActor('my-actor-slug', {})).rejects.toThrow(/upstream boom/)
+  })
+
+  it('throws when the response body is not an array', async () => {
+    process.env.APIFY_API_TOKEN = 'test-token'
+    vi.stubGlobal('fetch', vi.fn(async () => ({
+      ok: true,
+      json: async () => ({ not: 'an array' }),
+    })))
+    await expect(runActor('my-actor-slug', {})).rejects.toThrow(/non-array response/)
   })
 })
