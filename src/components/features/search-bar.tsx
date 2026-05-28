@@ -42,13 +42,21 @@ export function SearchBar({ initiallyOpen, initialQuery }: SearchBarProps) {
     if (isOpen) inputRef.current?.focus()
   }, [isOpen])
 
-  // Sync URL → state when navigating back/forward.
+  // Sync URL → state when navigating back/forward. Skip when the URL change came from us
+  // (lastSyncedRef matches) so a fast keystroke doesn't get overwritten mid-flight.
   useEffect(() => {
     const q = params.get('q') ?? ''
-    setValue(q)
+    if (q !== lastSyncedRef.current) {
+      setValue(q)
+      lastSyncedRef.current = q
+    }
     setIsOpen((prev) => q.length > 0 || prev)
-    lastSyncedRef.current = q
   }, [params])
+
+  // Clear any pending debounce on unmount.
+  useEffect(() => () => {
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+  }, [])
 
   function pushQueryToUrl(next: string, mode: 'push' | 'replace') {
     if (next === lastSyncedRef.current) return
@@ -140,15 +148,10 @@ export function SearchBar({ initiallyOpen, initialQuery }: SearchBarProps) {
 
   if (!isOpen) {
     return (
-      <div className="flex gap-2">
-        <Button variant="outline" size="sm" onClick={onOpen}>
-          <Search className="w-4 h-4 mr-1" />
-          Search
-        </Button>
-        <Button variant="outline" size="sm" disabled>
-          Filters
-        </Button>
-      </div>
+      <Button variant="outline" size="sm" onClick={onOpen}>
+        <Search className="w-4 h-4 mr-1" />
+        Search
+      </Button>
     )
   }
 
@@ -166,7 +169,7 @@ export function SearchBar({ initiallyOpen, initialQuery }: SearchBarProps) {
         variant="ghost"
         size="sm"
         onClick={onClose}
-        className="sm:hidden h-9 w-9 p-0 shrink-0"
+        className="sm:hidden h-11 w-11 p-0 shrink-0"
         aria-label="Close search"
       >
         <ChevronLeft className="w-5 h-5" />
@@ -185,8 +188,8 @@ export function SearchBar({ initiallyOpen, initialQuery }: SearchBarProps) {
           onKeyDown={onKeyDown}
           placeholder="Search your jobs by title, company, location, or category"
           className={cn(
-            'w-full h-9 rounded-md border border-input bg-background',
-            'pl-9 pr-9 text-sm',
+            'w-full h-11 sm:h-9 rounded-md border border-input bg-background',
+            'pl-9 pr-10 text-base sm:text-sm',
             'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
           )}
         />
@@ -199,10 +202,10 @@ export function SearchBar({ initiallyOpen, initialQuery }: SearchBarProps) {
               pushQueryToUrl('', 'replace')
               inputRef.current?.focus()
             }}
-            className="absolute right-2 top-1/2 -translate-y-1/2 h-6 w-6 inline-flex items-center justify-center rounded-md hover:bg-accent"
+            className="absolute right-1 top-1/2 -translate-y-1/2 h-9 w-9 sm:h-6 sm:w-6 inline-flex items-center justify-center rounded-md hover:bg-accent"
             aria-label="Clear search"
           >
-            <X className="w-3.5 h-3.5" />
+            <X className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
           </button>
         )}
       </div>
