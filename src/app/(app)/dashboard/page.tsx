@@ -216,6 +216,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
 
               {totalCount > 0 && (
                 <FeedClient
+                  key={`${tab}-${score}-${time}`}
                   initialItems={feed}
                   totalCount={totalCount}
                   pageSize={pageSize}

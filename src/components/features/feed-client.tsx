@@ -39,12 +39,14 @@ export function FeedClient({
   onMarkRead,
 }: FeedClientProps) {
   const [items, setItems] = useState<FeedItem[]>(initialItems)
+  const [nextPage, setNextPage] = useState(2)
+  const [exhausted, setExhausted] = useState(false)
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set())
   const [isPending, startTransition] = useTransition()
   const router = useRouter()
 
   const visibleItems = items.filter((i: FeedItem) => !dismissedIds.has(i.job_id))
-  const hasMore = items.length < totalCount
+  const hasMore = !exhausted && items.length < totalCount
 
   if (visibleItems.length === 0) {
     return null
@@ -58,10 +60,16 @@ export function FeedClient({
         tab,
         score: scoreFilter,
         time: timeFilter,
-        offset: items.length,
+        page: nextPage,
         pageSize,
       })
-      setItems((prev: FeedItem[]) => [...prev, ...more])
+      setItems((prev: FeedItem[]) => {
+        const seen = new Set(prev.map(p => p.id))
+        const fresh = more.filter(m => !seen.has(m.id))
+        if (fresh.length === 0) setExhausted(true)
+        return [...prev, ...fresh]
+      })
+      setNextPage(p => p + 1)
     })
   }
 
