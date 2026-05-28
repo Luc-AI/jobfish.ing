@@ -21,8 +21,8 @@ interface JobLogRowProps {
   notifiedAt: string | null
   status: 'new' | 'saved' | 'applied' | 'dismissed'
   appliedAt?: string | null
-  onPass: () => void
-  onSave: () => void
+  onPass?: () => void
+  onSave?: () => void
   onDetails?: () => void
 }
 
@@ -102,27 +102,33 @@ export function JobLogRow({
             </span>
           )}
 
-          <div
-            className="flex items-center gap-2 mt-3"
-            onClick={e => e.stopPropagation()}
-          >
-            <Button variant="outline" size="sm" onClick={onPass} className="h-8">
-              <X className="w-3.5 h-3.5 mr-1" />
-              Pass
-            </Button>
-            <Button variant="outline" size="sm" onClick={onSave} className="h-8">
-              <Bookmark className="w-3.5 h-3.5 mr-1" />
-              Save
-            </Button>
-            <div className="flex-1" />
-            {onDetails ? (
-              <Button size="sm" className="h-8" onClick={onDetails}>Details</Button>
-            ) : (
-              <a href={url} target="_blank" rel="noopener noreferrer">
-                <Button size="sm" className="h-8">Details</Button>
-              </a>
-            )}
-          </div>
+          {(onPass || onSave) && (
+            <div
+              className="flex items-center gap-2 mt-3"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {onPass && (
+                <Button variant="outline" size="sm" onClick={onPass} className="h-8">
+                  <X className="w-3.5 h-3.5 mr-1" />
+                  Pass
+                </Button>
+              )}
+              {onSave && (
+                <Button variant="outline" size="sm" onClick={onSave} className="h-8">
+                  <Bookmark className="w-3.5 h-3.5 mr-1" />
+                  Save
+                </Button>
+              )}
+              <div className="flex-1" />
+              {onDetails ? (
+                <Button size="sm" className="h-8" onClick={onDetails}>Details</Button>
+              ) : (
+                <a href={url} target="_blank" rel="noopener noreferrer">
+                  <Button size="sm" className="h-8">Details</Button>
+                </a>
+              )}
+            </div>
+          )}
         </div>
       </div>
 

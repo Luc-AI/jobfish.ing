@@ -16,6 +16,9 @@ import { FeedClient } from '@/components/features/feed-client'
 import { AppliedTracker, type TrackerJob } from '@/components/features/applied-tracker'
 import { DismissedList, type DismissedJob } from '@/components/features/dismissed-list'
 import { Button } from '@/components/ui/button'
+import { SearchBar } from '@/components/features/search-bar'
+import { SearchResults } from '@/components/features/search-results'
+import { Suspense } from 'react'
 import {
   passJobAction,
   saveJobAction,
@@ -24,7 +27,7 @@ import {
 } from './actions'
 
 interface DashboardPageProps {
-  searchParams: Promise<{ tab?: string; page?: string }>
+  searchParams: Promise<{ tab?: string; page?: string; q?: string }>
 }
 
 function isValidTab(s: string | undefined): s is FeedTab {
@@ -43,15 +46,28 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   if (!user) redirect('/login')
 
   const params = await searchParams
+  const rawQuery = (params.q ?? '').trim()
+  const isSearching = rawQuery.length >= 2
   const tab: FeedTab = isValidTab(params.tab) ? params.tab : 'all'
   const page = Math.max(1, Number(params.page ?? 1))
   const pageSize = 20
 
-  const [feedResult, prefsResult, appliedResult] = await Promise.all([
-    tab !== 'applied' ? getJobFeed(user.id, tab, page, pageSize) : Promise.resolve({ data: [] as FeedItem[], error: null }),
-    getPreferences(user.id),
-    tab === 'applied' ? getAppliedJobs(user.id) : Promise.resolve({ data: [] as AppliedJob[], error: null }),
-  ])
+  // Skip all per-tab fetches while searching — search is global and hides the tab bar.
+  const [feedResult, prefsResult, appliedResult] = isSearching
+    ? [
+        { data: [] as FeedItem[], error: null },
+        { data: null, error: null },
+        { data: [] as AppliedJob[], error: null },
+      ]
+    : await Promise.all([
+        tab !== 'applied'
+          ? getJobFeed(user.id, tab, page, pageSize)
+          : Promise.resolve({ data: [] as FeedItem[], error: null }),
+        getPreferences(user.id),
+        tab === 'applied'
+          ? getAppliedJobs(user.id)
+          : Promise.resolve({ data: [] as AppliedJob[], error: null }),
+      ])
 
   const feed: FeedItem[] = feedResult.data ?? []
   const threshold = prefsResult.data?.score_threshold ?? 7.0
@@ -62,11 +78,13 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   const aboveThreshold: FeedItem[] = tab === 'all' ? feed.filter((f: FeedItem) => f.score >= threshold) : feed
   const belowThreshold: FeedItem[] = tab === 'all' ? feed.filter((f: FeedItem) => f.score < threshold) : []
 
-  const [savedResult, appliedCountResult, dismissedResult] = await Promise.all([
-    supabase.from('user_job_actions').select('*', { count: 'exact', head: true }).eq('user_id', user.id).eq('status', 'saved'),
-    supabase.from('user_job_actions').select('*', { count: 'exact', head: true }).eq('user_id', user.id).eq('status', 'applied'),
-    supabase.from('user_job_actions').select('*', { count: 'exact', head: true }).eq('user_id', user.id).eq('status', 'dismissed'),
-  ])
+  const [savedResult, appliedCountResult, dismissedResult] = isSearching
+    ? [{ count: 0 }, { count: 0 }, { count: 0 }]
+    : await Promise.all([
+        supabase.from('user_job_actions').select('*', { count: 'exact', head: true }).eq('user_id', user.id).eq('status', 'saved'),
+        supabase.from('user_job_actions').select('*', { count: 'exact', head: true }).eq('user_id', user.id).eq('status', 'applied'),
+        supabase.from('user_job_actions').select('*', { count: 'exact', head: true }).eq('user_id', user.id).eq('status', 'dismissed'),
+      ])
 
   const tabs = [
     { value: 'all', label: 'All', count: tab === 'all' ? totalCount : undefined },
@@ -75,7 +93,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
     { value: 'dismissed', label: 'Dismissed', count: dismissedResult.count ?? 0 },
   ]
 
-  if (tab === 'all') {
+  if (tab === 'all' && !isSearching) {
     await upsertLastVisit(user.id)
   }
 
@@ -108,8 +126,8 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
 
   return (
     <div style={{ maxWidth: 816, margin: '0 auto', padding: '32px 16px', overflowX: 'hidden' }}>
-      <div className="flex items-start justify-between mb-6">
-        <div>
+      <div className="flex items-start justify-between gap-3 mb-6">
+        <div className={isSearching ? 'hidden sm:block' : ''}>
           <h1
             className="font-bold leading-tight"
             style={{ fontSize: 28, letterSpacing: '-0.6px' }}
@@ -122,61 +140,79 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
             </p>
           )}
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" disabled>Search</Button>
-          <Button variant="outline" size="sm" disabled>Filters</Button>
+        <div className={isSearching ? 'flex-1 sm:flex-none w-full sm:w-auto' : 'flex gap-2'}>
+          <SearchBar initiallyOpen={isSearching} initialQuery={rawQuery} />
+          {!isSearching && (
+            <Button variant="outline" size="sm" disabled>Filters</Button>
+          )}
         </div>
       </div>
 
-      <LogTab tabs={tabs} activeTab={tab} />
+      {!isSearching && <LogTab tabs={tabs} activeTab={tab} />}
 
-      {(tab === 'all' || tab === 'saved') && (
-        <div
-          className="flex items-center gap-1.5 mt-3 mb-6 text-muted-foreground"
-          style={{ fontSize: 12 }}
-        >
-          <Sparkles className="w-3.5 h-3.5" />
-          <span>Sorted for you · freshness × match score</span>
+      {isSearching ? (
+        <div className="mt-6">
+          <Suspense
+            fallback={
+              <p className="text-center text-muted-foreground py-12 text-sm">
+                Searching…
+              </p>
+            }
+          >
+            <SearchResults userId={user.id} query={rawQuery} />
+          </Suspense>
         </div>
-      )}
+      ) : (
+        <>
+          {(tab === 'all' || tab === 'saved') && (
+            <div
+              className="flex items-center gap-1.5 mt-3 mb-6 text-muted-foreground"
+              style={{ fontSize: 12 }}
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>Sorted for you · freshness × match score</span>
+            </div>
+          )}
 
-      {(tab === 'all' || tab === 'saved') && (
-        <div className={tab === 'all' ? '' : 'mt-6'}>
-          <FeedClient
-            items={aboveThreshold}
-            onPass={passJobAction}
-            onSave={saveJobAction}
-            onMarkRead={markJobReadAction}
-            showSections={tab === 'all'}
-          />
-
-          {tab === 'all' && belowThreshold.length > 0 && (
-            <LowConfidenceFold count={belowThreshold.length} threshold={threshold}>
+          {(tab === 'all' || tab === 'saved') && (
+            <div className={tab === 'all' ? '' : 'mt-6'}>
               <FeedClient
-                items={belowThreshold}
+                items={aboveThreshold}
                 onPass={passJobAction}
                 onSave={saveJobAction}
                 onMarkRead={markJobReadAction}
-                showSections={false}
+                showSections={tab === 'all'}
               />
-            </LowConfidenceFold>
+
+              {tab === 'all' && belowThreshold.length > 0 && (
+                <LowConfidenceFold count={belowThreshold.length} threshold={threshold}>
+                  <FeedClient
+                    items={belowThreshold}
+                    onPass={passJobAction}
+                    onSave={saveJobAction}
+                    onMarkRead={markJobReadAction}
+                    showSections={false}
+                  />
+                </LowConfidenceFold>
+              )}
+            </div>
           )}
-        </div>
-      )}
 
-      {tab === 'applied' && (
-        <div className="mt-6">
-          <AppliedTracker jobs={trackerJobs} />
-        </div>
-      )}
+          {tab === 'applied' && (
+            <div className="mt-6">
+              <AppliedTracker jobs={trackerJobs} />
+            </div>
+          )}
 
-      {tab === 'dismissed' && (
-        <div className="mt-6">
-          <DismissedList
-            jobs={dismissedJobs}
-            onRestore={deleteJobAction}
-          />
-        </div>
+          {tab === 'dismissed' && (
+            <div className="mt-6">
+              <DismissedList
+                jobs={dismissedJobs}
+                onRestore={deleteJobAction}
+              />
+            </div>
+          )}
+        </>
       )}
     </div>
   )
