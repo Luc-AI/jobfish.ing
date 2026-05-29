@@ -71,23 +71,6 @@ describe('notifyUsersTask', () => {
     expect((notifyUsersTask as any).retry).toEqual({ maxAttempts: 2 })
   })
 
-  it('formats known source labels for display', () => {
-    const digests = buildUserDigests(
-      [
-        {
-          id: 'e1',
-          score: 8.0,
-          reasoning: 'Good',
-          user_id: 'user-1',
-          jobs: { title: 'Role', company: 'Co', location: null, url: 'https://example.com', source: 'linkedin' },
-        },
-      ],
-      [{ id: 'user-1', threshold: 7, notifications_enabled: true }]
-    )
-
-    expect(digests[0].jobs[0].source).toBe('LinkedIn')
-  })
-
   it('includes all evaluations for the same title+company without deduplication', () => {
     const digests = buildUserDigests(
       [
@@ -97,12 +80,13 @@ describe('notifyUsersTask', () => {
           reasoning: 'From LinkedIn',
           user_id: 'user-1',
           created_at: '2026-04-14T01:00:00.000Z',
+          dimensions: null,
           jobs: {
+            id: 'job-evaluation-1',
             title: 'Head of Product',
             company: 'Acme',
             location: 'Zurich',
             url: 'https://linkedin.com/jobs/123',
-            source: 'linkedin',
           },
         },
         {
@@ -111,12 +95,13 @@ describe('notifyUsersTask', () => {
           reasoning: 'From career site',
           user_id: 'user-1',
           created_at: '2026-04-14T02:00:00.000Z',
+          dimensions: null,
           jobs: {
+            id: 'job-evaluation-2',
             title: 'Head of Product',
             company: 'Acme',
             location: 'Zurich',
             url: 'https://acme.com/careers/head-of-product',
-            source: 'company_site',
           },
         },
       ],
@@ -129,28 +114,64 @@ describe('notifyUsersTask', () => {
         evaluationIds: ['evaluation-1', 'evaluation-2'],
         jobs: [
           {
+            jobId: 'job-evaluation-1',
             jobTitle: 'Head of Product',
             company: 'Acme',
             location: 'Zurich',
             score: 8.5,
             reasoning: 'From LinkedIn',
             applyUrl: 'https://linkedin.com/jobs/123',
-            source: 'LinkedIn',
-            isHotPick: false,
+            dimensions: null,
           },
           {
+            jobId: 'job-evaluation-2',
             jobTitle: 'Head of Product',
             company: 'Acme',
             location: 'Zurich',
             score: 8.2,
             reasoning: 'From career site',
             applyUrl: 'https://acme.com/careers/head-of-product',
-            source: 'company_site',
-            isHotPick: false,
+            dimensions: null,
           },
         ],
       },
     ])
+  })
+
+  it('passes evaluation dimensions through to the digest item unchanged', () => {
+    const digests = buildUserDigests(
+      [
+        {
+          id: 'evaluation-dim',
+          score: 8.4,
+          reasoning: 'With dimensions',
+          user_id: 'user-1',
+          dimensions: {
+            role_fit: 9,
+            domain_fit: 8,
+            experience_fit: 9,
+            location_fit: 7,
+            upside: 6,
+          },
+          jobs: {
+            id: 'job-evaluation-dim',
+            title: 'Head of Product',
+            company: 'Acme',
+            location: 'Zurich',
+            url: 'https://example.com/dim',
+          },
+        },
+      ],
+      [{ id: 'user-1', threshold: 7, notifications_enabled: true }]
+    )
+
+    expect(digests[0].jobs[0].dimensions).toEqual({
+      role_fit: 9,
+      domain_fit: 8,
+      experience_fit: 9,
+      location_fit: 7,
+      upside: 6,
+    })
   })
 
   it('builds digests from array-shaped job relations and skips null jobs', () => {
@@ -161,20 +182,21 @@ describe('notifyUsersTask', () => {
           score: 8.1,
           reasoning: 'Use the first related job',
           user_id: 'user-1',
+          dimensions: null,
           jobs: [
             {
+              id: 'job-evaluation-2-first',
               title: 'First Role',
               company: 'Acme',
               location: 'Zurich',
               url: 'https://example.com/first-role',
-              source: 'linkedin',
             },
             {
+              id: 'job-evaluation-2-second',
               title: 'Second Role',
               company: 'Acme',
               location: 'Remote',
               url: 'https://example.com/second-role',
-              source: 'jobs.ch',
             },
           ],
         },
@@ -183,6 +205,7 @@ describe('notifyUsersTask', () => {
           score: 8.3,
           reasoning: 'Missing job relation',
           user_id: 'user-1',
+          dimensions: null,
           jobs: null,
         },
       ],
@@ -195,14 +218,14 @@ describe('notifyUsersTask', () => {
         evaluationIds: ['evaluation-2'],
         jobs: [
           {
+            jobId: 'job-evaluation-2-first',
             jobTitle: 'First Role',
             company: 'Acme',
             location: 'Zurich',
             score: 8.1,
             reasoning: 'Use the first related job',
             applyUrl: 'https://example.com/first-role',
-            source: 'LinkedIn',
-            isHotPick: false,
+            dimensions: null,
           },
         ],
       },
@@ -218,12 +241,13 @@ describe('notifyUsersTask', () => {
           reasoning: 'Great leadership overlap',
           user_id: 'user-2',
           created_at: '2026-04-10T05:00:00.000Z',
+          dimensions: null,
           jobs: {
+            id: 'job-evaluation-4',
             title: 'VP Product',
             company: 'Globex',
             location: null,
             url: 'https://example.com/vp-product',
-            source: 'linkedin',
           },
         },
         {
@@ -232,12 +256,13 @@ describe('notifyUsersTask', () => {
           reasoning: 'Solid fit',
           user_id: 'user-1',
           created_at: '2026-04-10T04:00:00.000Z',
+          dimensions: null,
           jobs: {
+            id: 'job-evaluation-2',
             title: 'Director of Product',
             company: 'Acme',
             location: 'Remote',
             url: 'https://example.com/director-of-product',
-            source: 'jobs.ch',
           },
         },
         {
@@ -246,12 +271,13 @@ describe('notifyUsersTask', () => {
           reasoning: 'Notifications disabled',
           user_id: 'user-3',
           created_at: '2026-04-10T03:00:00.000Z',
+          dimensions: null,
           jobs: {
+            id: 'job-evaluation-5',
             title: 'Chief Product Officer',
             company: 'Initech',
             location: 'Bern',
             url: 'https://example.com/cpo',
-            source: 'linkedin',
           },
         },
         {
@@ -260,12 +286,13 @@ describe('notifyUsersTask', () => {
           reasoning: 'Strong match',
           user_id: 'user-1',
           created_at: '2026-04-10T01:00:00.000Z',
+          dimensions: null,
           jobs: {
+            id: 'job-evaluation-1',
             title: 'Head of Product',
             company: 'Acme',
             location: 'Zurich',
             url: 'https://example.com/head-of-product',
-            source: 'linkedin',
           },
         },
         {
@@ -274,12 +301,13 @@ describe('notifyUsersTask', () => {
           reasoning: 'Below threshold',
           user_id: 'user-1',
           created_at: '2026-04-10T02:00:00.000Z',
+          dimensions: null,
           jobs: {
+            id: 'job-evaluation-3',
             title: 'Product Manager',
             company: 'Acme',
             location: 'Basel',
             url: 'https://example.com/product-manager',
-            source: 'company_site',
           },
         },
       ],
@@ -341,36 +369,36 @@ describe('notifyUsersTask', () => {
     expect(renderedGroups).toEqual([
       [
         {
+          jobId: 'job-evaluation-1',
           jobTitle: 'Head of Product',
           company: 'Acme',
           location: 'Zurich',
           score: 8.4,
           reasoning: 'Strong match',
           applyUrl: 'https://example.com/head-of-product',
-          source: 'LinkedIn',
-          isHotPick: false,
+          dimensions: null,
         },
         {
+          jobId: 'job-evaluation-2',
           jobTitle: 'Director of Product',
           company: 'Acme',
           location: 'Remote',
           score: 7.6,
           reasoning: 'Solid fit',
           applyUrl: 'https://example.com/director-of-product',
-          source: 'jobs.ch',
-          isHotPick: false,
+          dimensions: null,
         },
       ],
       [
         {
+          jobId: 'job-evaluation-4',
           jobTitle: 'VP Product',
           company: 'Globex',
           location: null,
           score: 8.2,
           reasoning: 'Great leadership overlap',
           applyUrl: 'https://example.com/vp-product',
-          source: 'LinkedIn',
-          isHotPick: false,
+          dimensions: null,
         },
       ],
     ])
@@ -403,12 +431,13 @@ describe('notifyUsersTask', () => {
           score: 8.4,
           reasoning: 'Strong match',
           user_id: 'user-1',
+          dimensions: null,
           jobs: {
+            id: 'job-evaluation-1',
             title: 'Head of Product',
             company: 'Acme',
             location: 'Zurich',
             url: 'https://example.com/head-of-product',
-            source: 'linkedin',
           },
         },
       ],
@@ -472,12 +501,13 @@ describe('notifyUsersTask', () => {
           score: 8.4,
           reasoning: 'Strong match',
           user_id: 'user-1',
+          dimensions: null,
           jobs: {
+            id: 'job-evaluation-1',
             title: 'Head of Product',
             company: 'Acme',
             location: 'Zurich',
             url: 'https://example.com/head-of-product',
-            source: 'linkedin',
           },
         },
       ],
@@ -547,12 +577,13 @@ describe('notifyUsersTask', () => {
           reasoning: 'Strong match',
           user_id: 'user-1',
           created_at: '2026-04-10T01:00:00.000Z',
+          dimensions: null,
           jobs: {
+            id: 'job-evaluation-1',
             title: 'Head of Product',
             company: 'Acme',
             location: 'Zurich',
             url: 'https://example.com/head-of-product',
-            source: 'linkedin',
           },
         },
       ],
@@ -630,30 +661,33 @@ describe('notifyUsersTask', () => {
           score: 7.5,
           reasoning: 'Decent match',
           user_id: 'user-1',
-          jobs: { title: 'Job A', company: 'Acme', location: null, url: 'https://example.com/a', source: 'linkedin' },
+          dimensions: null,
+          jobs: { id: 'job-a', title: 'Job A', company: 'Acme', location: null, url: 'https://example.com/a' },
         },
         {
           id: 'evaluation-2',
           score: 9.0,
           reasoning: 'Excellent match',
           user_id: 'user-1',
-          jobs: { title: 'Job B', company: 'Acme', location: null, url: 'https://example.com/b', source: 'linkedin' },
+          dimensions: null,
+          jobs: { id: 'job-b', title: 'Job B', company: 'Acme', location: null, url: 'https://example.com/b' },
         },
         {
           id: 'evaluation-3',
           score: 8.2,
           reasoning: 'Strong match',
           user_id: 'user-1',
-          jobs: { title: 'Job C', company: 'Acme', location: null, url: 'https://example.com/c', source: 'linkedin' },
+          dimensions: null,
+          jobs: { id: 'job-c', title: 'Job C', company: 'Acme', location: null, url: 'https://example.com/c' },
         },
       ],
       [{ id: 'user-1', threshold: 7, notifications_enabled: true }]
     )
 
-    expect(digests[0].jobs.map(j => ({ score: j.score, source: j.source }))).toEqual([
-      { score: 9.0, source: 'LinkedIn' },
-      { score: 8.2, source: 'LinkedIn' },
-      { score: 7.5, source: 'LinkedIn' },
+    expect(digests[0].jobs.map(j => ({ score: j.score, jobId: j.jobId }))).toEqual([
+      { score: 9.0, jobId: 'job-b' },
+      { score: 8.2, jobId: 'job-c' },
+      { score: 7.5, jobId: 'job-a' },
     ])
   })
 })

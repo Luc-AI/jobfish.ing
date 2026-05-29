@@ -3,6 +3,8 @@ import { createClient } from './server'
 import type { Database } from './types'
 import { deriveTargetCategories } from '@/trigger/lib/pre-filter'
 import type { RoleSelection } from './types'
+import type { TimeFilter } from '@/lib/feed/filters'
+import { parseTokens, matchesAllTokens } from '@/lib/search/match'
 
 type ProfileUpdate = Database['public']['Tables']['profiles']['Update']
 type PreferencesUpdate = Database['public']['Tables']['preferences']['Update']
@@ -53,6 +55,8 @@ export type FeedItem = {
     remote_type: string | null
     industry: string | null
     synced_at: string
+    date_posted: string | null
+    categories: string[] | null
   }
   user_job_actions: {
     job_id: string
@@ -63,6 +67,25 @@ export type FeedItem = {
 
 function firstThreeWords(s: string): string {
   return s.split(/\s+/).slice(0, 3).join(' ')
+}
+
+// Defense in depth: Supabase queries with `.order(..., { foreignTable })` have
+// been observed returning duplicate rows in production despite UNIQUE(job_id, user_id).
+// Deduplicate by FeedItem.id before returning.
+function dedupById(items: FeedItem[]): FeedItem[] {
+  const seen = new Set<string>()
+  const out: FeedItem[] = []
+  for (const item of items) {
+    if (seen.has(item.id)) continue
+    seen.add(item.id)
+    out.push(item)
+  }
+  if (out.length !== items.length) {
+    console.warn(
+      `getJobFeed: dropped ${items.length - out.length} duplicate row(s) from feed`,
+    )
+  }
+  return out
 }
 
 export function deriveChipsFromReasoning(
@@ -106,7 +129,9 @@ export async function getJobFeed(
   tab: FeedTab = 'all',
   page: number = 1,
   pageSize: number = 20,
-): Promise<{ data: FeedItem[]; error: unknown }> {
+  scoreFloor: number = 0,
+  timeFilter: TimeFilter = '7d',
+): Promise<{ data: FeedItem[]; totalCount: number; error: unknown }> {
   const supabase = await createClient()
   const offset = (page - 1) * pageSize
 
@@ -119,7 +144,6 @@ export async function getJobFeed(
 
     const lastVisit = prefs?.last_dashboard_visit_at ?? null
     const targetCategories = deriveTargetCategories((prefs?.target_roles ?? []) as RoleSelection[])
-    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
 
     // Fetch dismissed job IDs separately to avoid PostgREST LEFT→INNER JOIN coercion
     // when filtering on an embedded resource (`.not('user_job_actions.status', ...)` breaks LEFT JOIN)
@@ -130,27 +154,33 @@ export async function getJobFeed(
       .eq('status', 'dismissed')
     const dismissedJobIds = dismissedActions?.map(a => a.job_id) ?? []
 
+    const sevenDaysAgoIso = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
+
     let query = supabase
       .from('job_evaluations')
       .select(`
         id, job_id, score, reasoning, dimensions, notified_at, created_at, read_at, chips,
         detailed_reasoning,
-        jobs!inner (id, title, company, location, url, source, remote_type, industry, synced_at, categories)
-      `)
+        jobs!inner (id, title, company, location, url, source, remote_type, industry, synced_at, categories, date_posted)
+      `, { count: 'exact' })
       .eq('user_id', userId)
       .eq('jobs.is_active', true)
-      // Include jobs with no notified_at (evaluated but not yet sent) as well as recent ones
-      .or(`notified_at.is.null,notified_at.gte.${sevenDaysAgo}`)
-      .order('score', { ascending: false })
+      .gte('score', scoreFloor)
+      .order('synced_at', { foreignTable: 'jobs', ascending: false })
+      .order('created_at', { ascending: false })
       .range(offset, offset + pageSize - 1)
+
+    if (timeFilter === '7d') {
+      query = query.gte('jobs.synced_at', sevenDaysAgoIso)
+    }
 
     if (dismissedJobIds.length > 0) {
       query = query.not('job_id', 'in', `(${dismissedJobIds.join(',')})`)
     }
 
-    const { data: evaluations, error } = await query
+    const { data: evaluations, error, count } = await query
 
-    if (error) return { data: [], error }
+    if (error) return { data: [], totalCount: 0, error }
 
     // Fetch user_job_actions separately — no FK exists between job_evaluations and user_job_actions
     const evalJobIds = (evaluations ?? []).map(e => e.job_id)
@@ -168,7 +198,7 @@ export async function getJobFeed(
       id: string; job_id: string; score: number; reasoning: string | null
       dimensions: unknown; notified_at: string | null; created_at: string
       read_at: string | null; chips: unknown; detailed_reasoning: unknown
-      jobs: { id: string; title: string; company: string; location: string | null; url: string; source: string; remote_type: string | null; industry: string | null; synced_at: string; categories: string[] | null }
+      jobs: { id: string; title: string; company: string; location: string | null; url: string; source: string; remote_type: string | null; industry: string | null; synced_at: string; categories: string[] | null; date_posted: string | null }
     }
 
     const rawEvals = (evaluations ?? []) as EvalRow[]
@@ -209,7 +239,8 @@ export async function getJobFeed(
       }
     })
 
-    return { data: items, error: null }
+    const unique = dedupById(items)
+    return { data: unique, totalCount: count ?? unique.length, error: null }
   }
 
   if (tab === 'saved' || tab === 'dismissed') {
@@ -219,35 +250,45 @@ export async function getJobFeed(
       .select('job_id, status, applied_at')
       .eq('user_id', userId)
       .eq('status', tab)
-    if (actionsError) return { data: [], error: actionsError }
+    if (actionsError) return { data: [], totalCount: 0, error: actionsError }
 
     const actionJobIds = (actions ?? []).map(a => a.job_id!)
-    if (actionJobIds.length === 0) return { data: [], error: null }
+    if (actionJobIds.length === 0) return { data: [], totalCount: 0, error: null }
 
     const actionsByJobId = new Map<string, { job_id: string; status: string; applied_at: string | null }>(
       (actions ?? []).map(a => [a.job_id!, { job_id: a.job_id!, status: a.status, applied_at: a.applied_at }])
     )
 
-    const { data: evaluations, error } = await supabase
+    const sevenDaysAgoIso = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
+
+    let query = supabase
       .from('job_evaluations')
       .select(`
         id, job_id, score, reasoning, dimensions, notified_at, created_at, read_at, chips,
         detailed_reasoning,
-        jobs!inner (id, title, company, location, url, source, remote_type, industry, synced_at)
-      `)
+        jobs!inner (id, title, company, location, url, source, remote_type, industry, synced_at, date_posted)
+      `, { count: 'exact' })
       .eq('user_id', userId)
       .eq('jobs.is_active', true)
       .in('job_id', actionJobIds)
-      .order('score', { ascending: false })
+      .gte('score', scoreFloor)
+      .order('synced_at', { foreignTable: 'jobs', ascending: false })
+      .order('created_at', { ascending: false })
       .range(offset, offset + pageSize - 1)
 
-    if (error) return { data: [], error }
+    if (timeFilter === '7d') {
+      query = query.gte('jobs.synced_at', sevenDaysAgoIso)
+    }
+
+    const { data: evaluations, error, count } = await query
+
+    if (error) return { data: [], totalCount: 0, error }
 
     type EvalRow = {
       id: string; job_id: string; score: number; reasoning: string | null
       dimensions: unknown; notified_at: string | null; created_at: string
       read_at: string | null; chips: unknown; detailed_reasoning: unknown
-      jobs: unknown
+      jobs: { id: string; title: string; company: string; location: string | null; url: string; source: string; remote_type: string | null; industry: string | null; synced_at: string; date_posted: string | null }
     }
 
     const items: FeedItem[] = ((evaluations ?? []) as EvalRow[]).map(e => {
@@ -275,7 +316,8 @@ export async function getJobFeed(
       }
     })
 
-    return { data: items, error: null }
+    const unique = dedupById(items)
+    return { data: unique, totalCount: count ?? unique.length, error: null }
   }
 
   // applied tab — fetch actions first, sort by applied_at DESC in-memory
@@ -285,10 +327,10 @@ export async function getJobFeed(
     .eq('user_id', userId)
     .eq('status', 'applied')
     .order('applied_at', { ascending: false })
-  if (appliedActionsError) return { data: [], error: appliedActionsError }
+  if (appliedActionsError) return { data: [], totalCount: 0, error: appliedActionsError }
 
   const appliedJobIds = (appliedActions ?? []).map(a => a.job_id!)
-  if (appliedJobIds.length === 0) return { data: [], error: null }
+  if (appliedJobIds.length === 0) return { data: [], totalCount: 0, error: null }
 
   const appliedByJobId = new Map<string, { job_id: string; status: string; applied_at: string | null }>(
     (appliedActions ?? []).map(a => [a.job_id!, { job_id: a.job_id!, status: a.status, applied_at: a.applied_at }])
@@ -306,7 +348,7 @@ export async function getJobFeed(
     .in('job_id', appliedJobIds)
     .range(offset, offset + pageSize - 1)
 
-  if (error) return { data: [], error }
+  if (error) return { data: [], totalCount: 0, error }
 
   type EvalRow = {
     id: string; job_id: string; score: number; reasoning: string | null
@@ -347,7 +389,7 @@ export async function getJobFeed(
     return bAt.localeCompare(aAt)
   })
 
-  return { data: items, error: null }
+  return { data: items, totalCount: items.length, error: null }
 }
 
 export async function markJobRead(userId: string, jobId: string): Promise<void> {
@@ -526,4 +568,126 @@ export async function getJobDetail(userId: string, jobId: string): Promise<JobDe
       : null,
     action: action ? { status: action.status as 'saved' | 'dismissed' | 'applied', applied_at: action.applied_at } : null,
   }
+}
+
+export interface SearchOutcome {
+  results: FeedItem[]
+  totalMatches: number
+}
+
+const SEARCH_RESULT_CAP = 50
+
+// Per-user row counts are small (hundreds, not thousands) — we fetch all evaluations and
+// actions for the user and filter in memory. Source rows = the user's evaluations enriched
+// with their actions: every actioned job has an evaluation, so this is equivalent to the
+// "evaluations ∪ actions" union the plan describes.
+export async function searchUserJobs(
+  userId: string,
+  query: string,
+): Promise<SearchOutcome> {
+  const tokens = parseTokens(query)
+  if (tokens.length === 0) return { results: [], totalMatches: 0 }
+
+  const supabase = await createClient()
+
+  // 1) All evaluations for this user joined to active jobs.
+  const { data: evaluations, error: evalErr } = await supabase
+    .from('job_evaluations')
+    .select(`
+      id, job_id, score, reasoning, dimensions, notified_at, created_at, read_at, chips,
+      detailed_reasoning,
+      jobs!inner (id, title, company, location, url, source, remote_type, industry, synced_at, categories, date_posted)
+    `)
+    .eq('user_id', userId)
+    .eq('jobs.is_active', true)
+
+  if (evalErr) {
+    console.error('searchUserJobs: failed to fetch evaluations', evalErr)
+    return { results: [], totalMatches: 0 }
+  }
+
+  // 2) All actions for this user (status + applied_at).
+  const { data: actions, error: actionsErr } = await supabase
+    .from('user_job_actions')
+    .select('job_id, status, applied_at')
+    .eq('user_id', userId)
+
+  if (actionsErr) {
+    console.error('searchUserJobs: failed to fetch actions', actionsErr)
+  }
+
+  const actionsByJobId = new Map<
+    string,
+    { job_id: string; status: string; applied_at: string | null }
+  >()
+  for (const a of actions ?? []) {
+    if (a.job_id) {
+      actionsByJobId.set(a.job_id, {
+        job_id: a.job_id,
+        status: a.status,
+        applied_at: a.applied_at,
+      })
+    }
+  }
+
+  type EvalRow = {
+    id: string; job_id: string; score: number; reasoning: string | null
+    dimensions: unknown; notified_at: string | null; created_at: string
+    read_at: string | null; chips: unknown; detailed_reasoning: unknown
+    jobs: {
+      id: string; title: string; company: string; location: string | null
+      url: string; source: string; remote_type: string | null
+      industry: string | null; synced_at: string; categories: string[] | null
+      date_posted: string | null
+    }
+  }
+
+  // 3) Build FeedItem list (one eval row per (user_id, job_id) — implicit dedup).
+  const allItems: FeedItem[] = ((evaluations ?? []) as EvalRow[]).map((e) => {
+    const action = actionsByJobId.get(e.job_id) ?? null
+    const chips: Chip[] =
+      Array.isArray(e.chips) && e.chips.length > 0
+        ? (e.chips as Chip[])
+        : deriveChipsFromReasoning(
+            e.detailed_reasoning as {
+              strengths?: string[]
+              concerns?: string[]
+              red_flags?: string[]
+            } | null,
+          )
+
+    return {
+      id: e.id,
+      job_id: e.job_id,
+      score: e.score,
+      reasoning: e.reasoning,
+      dimensions: e.dimensions,
+      notified_at: e.notified_at,
+      created_at: e.created_at,
+      read_at: e.read_at,
+      chips,
+      is_unread: false,
+      jobs: e.jobs as FeedItem['jobs'],
+      user_job_actions: action,
+    }
+  })
+
+  // 4) Filter by AND-of-tokens match across title/company/location/categories.
+  const matched = allItems.filter((item) =>
+    matchesAllTokens(
+      {
+        title: item.jobs.title,
+        company: item.jobs.company,
+        location: item.jobs.location,
+        categories: item.jobs.categories ?? null,
+      },
+      tokens,
+    ),
+  )
+
+  // 5) Sort by synced_at DESC, then cap.
+  matched.sort((a, b) => b.jobs.synced_at.localeCompare(a.jobs.synced_at))
+  const results = matched.slice(0, SEARCH_RESULT_CAP)
+
+  return { results, totalMatches: matched.length }
 }

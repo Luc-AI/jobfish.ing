@@ -18,6 +18,43 @@ export type Database = {
   }
   public: {
     Tables: {
+      // MANUAL: re-add after `supabase gen types` regen (table not yet in remote schema).
+      apify_fallback_jobs: {
+        Row: {
+          id: string
+          source: string
+          fetched_at: string
+          title: string | null
+          company: string | null
+          location: string | null
+          url: string | null
+          raw: Json
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          source: string
+          fetched_at: string
+          title?: string | null
+          company?: string | null
+          location?: string | null
+          url?: string | null
+          raw: Json | Record<string, unknown>
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          source?: string
+          fetched_at?: string
+          title?: string | null
+          company?: string | null
+          location?: string | null
+          url?: string | null
+          raw?: Json | Record<string, unknown>
+          created_at?: string
+        }
+        Relationships: []
+      }
       job_evaluations: {
         Row: {
           chips: Json | null

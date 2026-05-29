@@ -18,11 +18,11 @@ interface JobLogRowProps {
   score: number
   chips: Chip[]
   isUnread: boolean
-  notifiedAt: string | null
+  syncedAt: string
   status: 'new' | 'saved' | 'applied' | 'dismissed'
   appliedAt?: string | null
-  onPass: () => void
-  onSave: () => void
+  onPass?: () => void
+  onSave?: () => void
   onDetails?: () => void
 }
 
@@ -42,7 +42,7 @@ export function JobLogRow({
   score,
   chips,
   isUnread,
-  notifiedAt,
+  syncedAt,
   status,
   appliedAt,
   onPass,
@@ -96,33 +96,37 @@ export function JobLogRow({
             {remoteType ? ` · ${remoteType}` : ''}
           </span>
 
-          {notifiedAt && (
-            <span className="mt-1 self-start inline-flex items-center rounded-full border border-[#e4e4e7] bg-white px-2 py-0.5 text-[11.5px] font-medium text-muted-foreground">
-              {formatRelativeTime(notifiedAt)}
-            </span>
-          )}
+          <span className="mt-1 self-start inline-flex items-center rounded-full border border-[#e4e4e7] bg-white px-2 py-0.5 text-[11.5px] font-medium text-muted-foreground">
+            {formatRelativeTime(syncedAt)}
+          </span>
 
-          <div
-            className="flex items-center gap-2 mt-3"
-            onClick={e => e.stopPropagation()}
-          >
-            <Button variant="outline" size="sm" onClick={onPass} className="h-8">
-              <X className="w-3.5 h-3.5 mr-1" />
-              Pass
-            </Button>
-            <Button variant="outline" size="sm" onClick={onSave} className="h-8">
-              <Bookmark className="w-3.5 h-3.5 mr-1" />
-              Save
-            </Button>
-            <div className="flex-1" />
-            {onDetails ? (
-              <Button size="sm" className="h-8" onClick={onDetails}>Details</Button>
-            ) : (
-              <a href={url} target="_blank" rel="noopener noreferrer">
-                <Button size="sm" className="h-8">Details</Button>
-              </a>
-            )}
-          </div>
+          {(onPass || onSave) && (
+            <div
+              className="flex items-center gap-2 mt-3"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {onPass && (
+                <Button variant="outline" size="sm" onClick={onPass} className="h-8">
+                  <X className="w-3.5 h-3.5 mr-1" />
+                  Pass
+                </Button>
+              )}
+              {onSave && (
+                <Button variant="outline" size="sm" onClick={onSave} className="h-8">
+                  <Bookmark className="w-3.5 h-3.5 mr-1" />
+                  Save
+                </Button>
+              )}
+              <div className="flex-1" />
+              {onDetails ? (
+                <Button size="sm" className="h-8" onClick={onDetails}>Details</Button>
+              ) : (
+                <a href={url} target="_blank" rel="noopener noreferrer">
+                  <Button size="sm" className="h-8">Details</Button>
+                </a>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
