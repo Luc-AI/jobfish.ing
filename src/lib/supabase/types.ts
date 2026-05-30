@@ -55,6 +55,36 @@ export type Database = {
         }
         Relationships: []
       }
+      companies: {
+        Row: {
+          id: string
+          name: string
+          name_normalized: string
+          first_seen_source: string
+          first_seen_at: string
+          last_seen_at: string
+          sample_job_url: string | null
+        }
+        Insert: {
+          id?: string
+          name: string
+          name_normalized: string
+          first_seen_source: string
+          first_seen_at?: string
+          last_seen_at?: string
+          sample_job_url?: string | null
+        }
+        Update: {
+          id?: string
+          name?: string
+          name_normalized?: string
+          first_seen_source?: string
+          first_seen_at?: string
+          last_seen_at?: string
+          sample_job_url?: string | null
+        }
+        Relationships: []
+      }
       job_evaluations: {
         Row: {
           chips: Json | null
