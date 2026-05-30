@@ -13,7 +13,7 @@ import {
   type ApifySource,
 } from './lib/apify'
 
-const TO_EMAIL = 'heer.luca@gmail.com'
+const TO_EMAIL = ['heer.luca@gmail.com', 'nina.r.heer@gmail.com']
 
 export const scrapeApifyFallbackTask = schedules.task({
   id: 'scrape-apify-fallback',
