@@ -12,6 +12,9 @@ import {
   type ApifyFallbackRow,
   type ApifySource,
 } from './lib/apify'
+import { registerCompanies, type CompanyObservation } from '@/lib/companies/registry'
+import { sendDiscoveryEmail } from '@/lib/companies/discovery-email'
+import { escapeAttr, escapeHtml } from '@/lib/html-escape'
 
 const TO_EMAIL = ['heer.luca@gmail.com', 'nina.r.heer@gmail.com']
 
@@ -56,6 +59,27 @@ export const scrapeApifyFallbackTask = schedules.task({
       }
     }
 
+    try {
+      const supabase = createServiceClient()
+      const observations: CompanyObservation[] = rows
+        .filter(r => r.company)
+        .map(r => ({
+          name: r.company as string,
+          source: `apify_${r.source}` as CompanyObservation['source'],
+          sampleJobUrl: r.url,
+        }))
+      const newCompanies = await registerCompanies(supabase, observations)
+      if (newCompanies.length > 0) {
+        await sendDiscoveryEmail(newCompanies, formatBerlinDate(fetchedAt))
+      }
+      console.log(`scrape-apify-fallback: ${newCompanies.length} new companies discovered`)
+    } catch (err) {
+      console.error(
+        `scrape-apify-fallback: company discovery failed: ${err instanceof Error ? err.message : String(err)}`,
+      )
+      Sentry.captureException(err)
+    }
+
     await sendSummaryEmail({ rows, errors, fetchedAt }).catch(err => {
       console.error(`scrape-apify-fallback: summary email failed: ${err instanceof Error ? err.message : String(err)}`)
       Sentry.captureException(err)
@@ -81,13 +105,7 @@ async function sendSummaryEmail({ rows, errors, fetchedAt }: SummaryArgs) {
   if (!apiKey) throw new Error('RESEND_API_KEY environment variable is not set')
 
   const resend = new Resend(apiKey)
-  // en-CA happens to format dates as YYYY-MM-DD.
-  const dateLabel = new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'Europe/Berlin',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).format(new Date(fetchedAt))
+  const dateLabel = formatBerlinDate(fetchedAt)
 
   const subject = `Apify fallback — ${rows.length} jobs (${dateLabel})`
 
@@ -143,14 +161,12 @@ function renderSection(title: string, rows: ApifyFallbackRow[]): string {
   return `<h3 style="margin-top: 20px;">${title}</h3><ul style="line-height: 1.6;">${items}</ul>`
 }
 
-function escapeHtml(s: string): string {
-  return s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-}
-
-function escapeAttr(s: string): string {
-  return escapeHtml(s).replace(/'/g, '&#39;')
+// en-CA happens to format dates as YYYY-MM-DD.
+function formatBerlinDate(iso: string): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Europe/Berlin',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date(iso))
 }

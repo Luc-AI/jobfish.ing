@@ -68,6 +68,13 @@ function makeMockSupabase({
         }),
       }
     }
+    if (table === 'companies') {
+      return {
+        select: () => ({ in: async () => ({ data: [], error: null }) }),
+        update: () => ({ in: async () => ({ error: null }) }),
+        upsert: async () => ({ error: null }),
+      }
+    }
     throw new Error(`Unexpected table: ${table}`)
   })
 }

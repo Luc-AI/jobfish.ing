@@ -5,6 +5,7 @@ import { createServiceClient } from '@/lib/supabase/service'
 import { fetchDelta, normalizeJobichJob } from './lib/jobich'
 import { evaluateJobsTask } from './evaluate-jobs'
 import { categorizeJobsTask } from './categorize-jobs'
+import { registerCompanies, type CompanyObservation } from '@/lib/companies/registry'
 
 export const syncJobsTask = schedules.task({
   id: 'sync-jobs',
@@ -76,6 +77,17 @@ export const syncJobsTask = schedules.task({
       }
 
       newJobIds = (inserted ?? []).map(j => j.id)
+
+      try {
+        // normalizeJobichJob defaults a missing company to 'Unknown'; skip that
+        // sentinel so it never pollutes the registry.
+        const observations: CompanyObservation[] = deduped
+          .filter(j => j.company && j.company !== 'Unknown')
+          .map(j => ({ name: j.company, source: 'jobich', sampleJobUrl: j.url }))
+        await registerCompanies(supabase, observations)
+      } catch (err) {
+        Sentry.captureException(err)
+      }
     }
 
     const { error: cursorError } = await syncStateTable
