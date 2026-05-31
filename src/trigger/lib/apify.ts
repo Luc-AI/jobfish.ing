@@ -2,7 +2,7 @@
 // Thin HTTP client + pure-function normalizer for the daily fallback scrape.
 // No Trigger.dev SDK imports — this file is unit-testable in isolation.
 
-export type ApifySource = 'linkedin' | 'career_site'
+export type ApifySource = 'linkedin' | 'career_site' | 'jobs_ch'
 
 export interface ApifyFallbackRow {
   source: ApifySource
@@ -17,6 +17,17 @@ export interface ApifyFallbackRow {
 export const APIFY_ACTORS: Record<ApifySource, string> = {
   linkedin: 'fantastic-jobs~advanced-linkedin-job-search-api',
   career_site: 'fantastic-jobs~career-site-job-listing-api',
+  jobs_ch: 'santamaria-automations~jobs-ch-scraper',
+}
+
+/**
+ * Env var holding each source's Apify API token. jobs.ch lives under a separate
+ * Apify account, so it reads a different token than linkedin/career_site.
+ */
+export const APIFY_TOKEN_ENV: Record<ApifySource, string> = {
+  linkedin: 'APIFY_API_TOKEN',
+  career_site: 'APIFY_API_TOKEN',
+  jobs_ch: 'APIFY_API_TOKEN_JOBS_CH',
 }
 
 export const LINKEDIN_PAYLOAD = {
@@ -72,6 +83,24 @@ export const CAREER_SITE_PAYLOAD = {
   ],
 } as const
 
+// santamaria-automations/jobs-ch-scraper. `publicationDate: '1'` is the 24h
+// delta filter. The other sources' wildcard titles (`HR:*`) become plain
+// keywords — jobs.ch has no wildcard syntax; its semantic search broadens.
+export const JOBS_CH_PAYLOAD = {
+  cantons: ['ZH'],
+  includeJobDetails: true,
+  maxConcurrency: 10,
+  maxResultsPerQuery: 50,
+  publicationDate: '1',
+  searchQueries: [
+    'Product Manager',
+    'Product Owner',
+    'Produktmanager',
+    'HR',
+    'Organisationsentwicklung',
+  ],
+} as const
+
 /**
  * Walks candidate keys in order, returns the first non-empty string value.
  * Arrays of strings are joined with ", " (non-strings dropped).
@@ -99,7 +128,7 @@ const LOCATION_KEYS = [
   'locations_raw',
   'cities_derived',
 ] as const
-const URL_KEYS = ['url', 'job_url', 'external_apply_url'] as const
+const URL_KEYS = ['url', 'job_url', 'external_apply_url', 'source_url', 'apply_url'] as const
 
 export function normalizeItem(
   source: ApifySource,
@@ -125,9 +154,10 @@ export function normalizeItem(
 export async function runActor(
   actorSlug: string,
   payload: Record<string, unknown>,
+  tokenEnvVar = 'APIFY_API_TOKEN',
 ): Promise<Record<string, unknown>[]> {
-  const token = process.env.APIFY_API_TOKEN
-  if (!token) throw new Error('APIFY_API_TOKEN is not set')
+  const token = process.env[tokenEnvVar]
+  if (!token) throw new Error(`${tokenEnvVar} is not set`)
 
   const url = `https://api.apify.com/v2/actors/${actorSlug}/run-sync-get-dataset-items?token=${encodeURIComponent(token)}`
   const res = await fetch(url, {

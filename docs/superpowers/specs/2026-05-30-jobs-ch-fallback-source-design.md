@@ -1,8 +1,8 @@
 # Design: jobs.ch as a third Apify fallback source
 
 **Date:** 2026-05-30
-**Branch:** feature/company-discovery
-**Status:** Approved pending spec review
+**Branch:** feature/jobs-ch-fallback-source
+**Status:** Implemented
 
 ## Goal
 
@@ -34,21 +34,17 @@ is the main structural change: `runActor` must support a per-source token.
 
 ### 1. Database migration — `supabase/migrations/0017_apify_fallback_jobs_add_jobs_ch.sql`
 
-`apify_fallback_jobs.source` has a CHECK constraint
-(`CHECK (source IN ('linkedin', 'career_site'))`, migration 0015). Inserting
-`'jobs_ch'` fails without widening it:
+The migration widens **two** CHECK constraints:
 
-```sql
-ALTER TABLE public.apify_fallback_jobs DROP CONSTRAINT apify_fallback_jobs_source_check;
-ALTER TABLE public.apify_fallback_jobs ADD CONSTRAINT apify_fallback_jobs_source_check
-  CHECK (source IN ('linkedin', 'career_site', 'jobs_ch'));
-```
+1. `apify_fallback_jobs.source` (migration 0015) — to accept `'jobs_ch'` rows.
+2. `companies.first_seen_source` (migration 0016) — to accept `'apify_jobs_ch'`.
 
-**Out of scope:** `companies.first_seen_source` (migration 0016) has a separate
-constraint listing `apify_linkedin`/`apify_career_site`. The scrape task does not
-write companies, so it is untouched here. If the company-discovery work on this
-branch later consumes jobs_ch rows, that constraint will need `apify_jobs_ch`
-added separately.
+The second is required because company-discovery (now merged into `develop`)
+feeds **every** fallback source into the company registry as
+`apify_${source}` (`scrape-apify-fallback.ts`). Without it, jobs.ch rows would
+fail company registration on every run. Migration number is **0017** — `0016`
+is already taken by `companies.sql`, so reusing it would collide when develop
+later merges to master.
 
 ### 2. `src/trigger/lib/apify.ts`
 
@@ -103,12 +99,19 @@ TDD: add a failing `normalizeItem` test for a jobs.ch-shaped item (`source_url`
 to make it green. The existing `external_apply_url` fallback test confirms key
 ordering still holds.
 
+### 5. Company registry (`src/lib/companies/`)
+
+Company-discovery is merged into `develop` and the scrape task feeds all
+fallback sources into the registry, so jobs.ch must flow through it cleanly:
+
+- `registry.ts` — add `'apify_jobs_ch'` to the `CompanySource` union.
+- `discovery-email.ts` — add an `apify_jobs_ch: 'jobs.ch'` label.
+
 ## Out of scope / non-changes
 
 - No change to `runActor`'s HTTP logic (the generic client already handles any
   actor slug + array response).
-- No downstream consumer changes (feed, notifications, company discovery).
-- `companies.first_seen_source` constraint untouched (see migration section).
+- No change to the feed, notifications, or evaluation pipelines.
 
 ## Cost / risk
 

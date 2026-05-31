@@ -85,6 +85,34 @@ describe('normalizeItem', () => {
     const row = normalizeItem('linkedin', item, '2026-05-28T04:00:00.000Z')
     expect(row.url).toBe('https://apply.example.com/x')
   })
+
+  it('normalizes a jobs.ch-shaped item (source_url → url)', () => {
+    const item = {
+      title: 'Product Manager',
+      company: 'Clienia Schloessli AG',
+      location: 'Zürich',
+      source_url: 'https://www.jobs.ch/de/stellenangebote/detail/abc-123/',
+      canton: 'ZH',
+      source_platform: 'jobs.ch',
+    }
+    const row = normalizeItem('jobs_ch', item, '2026-05-28T04:00:00.000Z')
+    expect(row.source).toBe('jobs_ch')
+    expect(row.title).toBe('Product Manager')
+    expect(row.company).toBe('Clienia Schloessli AG')
+    expect(row.location).toBe('Zürich')
+    expect(row.url).toBe('https://www.jobs.ch/de/stellenangebote/detail/abc-123/')
+    expect(row.raw).toEqual(item)
+  })
+
+  it('falls back to apply_url for jobs.ch when source_url is missing', () => {
+    const item = {
+      title: 'Product Owner',
+      company: 'Foo AG',
+      apply_url: 'https://apply.example.ch/po',
+    }
+    const row = normalizeItem('jobs_ch', item, '2026-05-28T04:00:00.000Z')
+    expect(row.url).toBe('https://apply.example.ch/po')
+  })
 })
 
 describe('runActor', () => {
@@ -128,5 +156,25 @@ describe('runActor', () => {
       json: async () => ({ not: 'an array' }),
     })))
     await expect(runActor('my-actor-slug', {})).rejects.toThrow(/non-array response/)
+  })
+
+  it('reads the token from a custom env var when tokenEnvVar is given', async () => {
+    delete process.env.APIFY_API_TOKEN
+    process.env.APIFY_API_TOKEN_JOBS_CH = 'jobs-ch-token'
+    let capturedUrl = ''
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+      capturedUrl = url
+      return { ok: true, json: async () => [] }
+    }))
+    await runActor('jobs-ch-slug', {}, 'APIFY_API_TOKEN_JOBS_CH')
+    expect(capturedUrl).toContain('token=jobs-ch-token')
+    delete process.env.APIFY_API_TOKEN_JOBS_CH
+  })
+
+  it('error message names the missing token env var', async () => {
+    delete process.env.APIFY_API_TOKEN_JOBS_CH
+    await expect(runActor('jobs-ch-slug', {}, 'APIFY_API_TOKEN_JOBS_CH')).rejects.toThrow(
+      'APIFY_API_TOKEN_JOBS_CH is not set',
+    )
   })
 })

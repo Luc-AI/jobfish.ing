@@ -18,7 +18,7 @@ function chunk<T>(items: T[], size: number): T[][] {
 }
 
 /** Matches the first_seen_source CHECK constraint on the companies table. */
-export type CompanySource = 'jobich' | 'apify_linkedin' | 'apify_career_site'
+export type CompanySource = 'jobich' | 'apify_linkedin' | 'apify_career_site' | 'apify_jobs_ch'
 
 export interface CompanyObservation {
   name: string
