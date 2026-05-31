@@ -15,7 +15,7 @@ export function normalizeCompanyName(raw: string | null | undefined): string {
   if (!raw) return ''
   // Lowercase, replace any non-letter/non-digit/non-space with a space,
   // then collapse whitespace. Unicode-aware so accented letters survive.
-  let s = raw
+  const s = raw
     .toLowerCase()
     .replace(/[^\p{L}\p{N}\s]/gu, ' ')
     .replace(/\s+/g, ' ')

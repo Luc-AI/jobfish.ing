@@ -17,7 +17,8 @@ function makeMockClient({ existing = [] as string[] } = {}) {
       upsert,
     }
   })
-  return { client: { from } as any, from, selectIn, updateIn, upsert }
+  const client = { from } as unknown as Parameters<typeof registerCompanies>[0]
+  return { client, from, selectIn, updateIn, upsert }
 }
 
 describe('registerCompanies', () => {
