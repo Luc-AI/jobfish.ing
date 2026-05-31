@@ -77,4 +77,25 @@ describe('registerCompanies', () => {
     expect(m.upsert).not.toHaveBeenCalled()
     expect(m.updateIn).toHaveBeenCalledTimes(1)
   })
+
+  it('chunks the existence .in() query for large batches (URL-length guard)', async () => {
+    const m = makeMockClient({ existing: [] })
+    // 250 distinct names -> ceil(250 / 100) = 3 select chunks.
+    const observations = Array.from({ length: 250 }, (_, i) => ({
+      name: `Company ${i}`,
+      source: 'jobich' as const,
+    }))
+    const result = await registerCompanies(m.client, observations)
+
+    expect(m.selectIn).toHaveBeenCalledTimes(3)
+    // Every chunked select stays within the chunk size. The mock receives
+    // .in(column, values), so the values array is the second argument.
+    for (const call of m.selectIn.mock.calls) {
+      const values = (call as unknown as unknown[])[1] as string[]
+      expect(values.length).toBeLessThanOrEqual(100)
+    }
+    // upsert is body-based, so it is a single call for all new rows.
+    expect(m.upsert).toHaveBeenCalledTimes(1)
+    expect(result).toHaveLength(250)
+  })
 })
