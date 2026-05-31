@@ -5,7 +5,9 @@ import { Resend } from 'resend'
 import { createServiceClient } from '@/lib/supabase/service'
 import {
   APIFY_ACTORS,
+  APIFY_TOKEN_ENV,
   CAREER_SITE_PAYLOAD,
+  JOBS_CH_PAYLOAD,
   LINKEDIN_PAYLOAD,
   normalizeItem,
   runActor,
@@ -18,17 +20,30 @@ import { escapeAttr, escapeHtml } from '@/lib/html-escape'
 
 const TO_EMAIL = ['heer.luca@gmail.com', 'nina.r.heer@gmail.com']
 
+// Canonical source order + display labels, used for fetching, the summary
+// email, and the run log so a new source is wired in exactly one place.
+const SOURCES: ApifySource[] = ['linkedin', 'career_site', 'jobs_ch']
+const SOURCE_LABELS: Record<ApifySource, string> = {
+  linkedin: 'LinkedIn',
+  career_site: 'Career sites',
+  jobs_ch: 'jobs.ch',
+}
+const PAYLOADS: Record<ApifySource, Record<string, unknown>> = {
+  linkedin: LINKEDIN_PAYLOAD,
+  career_site: CAREER_SITE_PAYLOAD,
+  jobs_ch: JOBS_CH_PAYLOAD,
+}
+
 export const scrapeApifyFallbackTask = schedules.task({
   id: 'scrape-apify-fallback',
   cron: { pattern: '0 6 * * *', timezone: 'Europe/Berlin' },
   retry: { maxAttempts: 2, minTimeoutInMs: 30_000, maxTimeoutInMs: 120_000 },
   run: async () => {
     const fetchedAt = new Date().toISOString()
-    const sources: ApifySource[] = ['linkedin', 'career_site']
-    const payloads = { linkedin: LINKEDIN_PAYLOAD, career_site: CAREER_SITE_PAYLOAD }
+    const sources = SOURCES
 
     const settled = await Promise.allSettled(
-      sources.map(s => runActor(APIFY_ACTORS[s], payloads[s])),
+      sources.map(s => runActor(APIFY_ACTORS[s], PAYLOADS[s], APIFY_TOKEN_ENV[s])),
     )
 
     const rows: ApifyFallbackRow[] = []
@@ -85,8 +100,9 @@ export const scrapeApifyFallbackTask = schedules.task({
       Sentry.captureException(err)
     })
 
+    const perSource = SOURCES.map(s => `${s}: ${rows.filter(r => r.source === s).length}`).join(', ')
     console.log(
-      `scrape-apify-fallback: ${rows.length} jobs (linkedin: ${rows.filter(r => r.source === 'linkedin').length}, career_site: ${rows.filter(r => r.source === 'career_site').length}), errors: ${errors.length}`,
+      `scrape-apify-fallback: ${rows.length} jobs (${perSource}), errors: ${errors.length}`,
     )
     // Trigger.dev may checkpoint/exit before @sentry/node's background flush completes.
     await Sentry.flush(2000)
@@ -109,16 +125,19 @@ async function sendSummaryEmail({ rows, errors, fetchedAt }: SummaryArgs) {
 
   const subject = `Apify fallback — ${rows.length} jobs (${dateLabel})`
 
-  const linkedinRows = rows.filter(r => r.source === 'linkedin')
-  const careerRows = rows.filter(r => r.source === 'career_site')
+  const rowsBySource = SOURCES.map(s => ({
+    label: SOURCE_LABELS[s],
+    rows: rows.filter(r => r.source === s),
+  }))
+  const counts = rowsBySource.map(({ label, rows }) => `${label}: ${rows.length}`).join(' · ')
+  const sections = rowsBySource.map(({ label, rows }) => renderSection(label, rows)).join('')
 
   const html = `
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 720px;">
       <h2 style="margin-bottom: 8px;">Apify fallback — ${dateLabel}</h2>
-      <p style="color: #555; margin-top: 0;">${rows.length} jobs total · LinkedIn: ${linkedinRows.length} · Career sites: ${careerRows.length}</p>
+      <p style="color: #555; margin-top: 0;">${rows.length} jobs total · ${counts}</p>
       ${renderErrorBanner(errors)}
-      ${renderSection('LinkedIn', linkedinRows)}
-      ${renderSection('Career sites', careerRows)}
+      ${sections}
     </div>
   `
 

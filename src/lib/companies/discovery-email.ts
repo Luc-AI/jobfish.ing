@@ -8,6 +8,7 @@ const TO_EMAIL = 'heer.luca@gmail.com'
 const SOURCE_LABELS: Record<string, string> = {
   apify_linkedin: 'LinkedIn',
   apify_career_site: 'Career site',
+  apify_jobs_ch: 'jobs.ch',
   jobich: 'Jobich',
 }
 
