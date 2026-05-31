@@ -123,7 +123,7 @@ export function buildUserDigests(
 export const notifyUsersTask = schedules.task({
   id: 'notify-users',
   cron: {
-    pattern: '0 8 * * *',
+    pattern: '0 6 * * *',
     timezone: 'Europe/Zurich',
   },
   retry: { maxAttempts: 2 },
