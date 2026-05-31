@@ -5,6 +5,18 @@ import { normalizeCompanyName } from './normalize'
 
 type ServiceClient = ReturnType<typeof createServiceClient>
 
+// PostgREST encodes `.in()` filter values into the request URL, so a large
+// batch (e.g. the backfill's 1000-row pages) overflows the URL length and the
+// request fails with "fetch failed". Chunk `.in()` queries to stay well under
+// any URL limit.
+const IN_CHUNK_SIZE = 100
+
+function chunk<T>(items: T[], size: number): T[][] {
+  const out: T[][] = []
+  for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size))
+  return out
+}
+
 /** Matches the first_seen_source CHECK constraint on the companies table. */
 export type CompanySource = 'jobich' | 'apify_linkedin' | 'apify_career_site'
 
@@ -53,23 +65,26 @@ export async function registerCompanies(
 
   const normalizedKeys = [...byNorm.keys()]
 
-  // 2. Which of these already exist?
-  const { data: existing, error: selectError } = await supabase
-    .from('companies')
-    .select('name_normalized')
-    .in('name_normalized', normalizedKeys)
-  if (selectError) throw new Error(`companies select failed: ${selectError.message}`)
+  // 2. Which of these already exist? (chunked .in() — see IN_CHUNK_SIZE)
+  const existingSet = new Set<string>()
+  for (const slice of chunk(normalizedKeys, IN_CHUNK_SIZE)) {
+    const { data, error: selectError } = await supabase
+      .from('companies')
+      .select('name_normalized')
+      .in('name_normalized', slice)
+    if (selectError) throw new Error(`companies select failed: ${selectError.message}`)
+    for (const r of data ?? []) existingSet.add(r.name_normalized)
+  }
 
-  const existingSet = new Set((existing ?? []).map(r => r.name_normalized))
   const nowIso = new Date().toISOString()
 
-  // 3. Bump last_seen_at for the ones we already know.
+  // 3. Bump last_seen_at for the ones we already know (chunked .in()).
   const existingKeys = normalizedKeys.filter(k => existingSet.has(k))
-  if (existingKeys.length > 0) {
+  for (const slice of chunk(existingKeys, IN_CHUNK_SIZE)) {
     const { error: bumpError } = await supabase
       .from('companies')
       .update({ last_seen_at: nowIso })
-      .in('name_normalized', existingKeys)
+      .in('name_normalized', slice)
     if (bumpError) throw new Error(`companies last_seen bump failed: ${bumpError.message}`)
   }
 
