@@ -18,7 +18,7 @@ import { registerCompanies, type CompanyObservation } from '@/lib/companies/regi
 import { sendDiscoveryEmail } from '@/lib/companies/discovery-email'
 import { escapeAttr, escapeHtml } from '@/lib/html-escape'
 
-const TO_EMAIL = ['heer.luca@gmail.com', 'nina.r.heer@gmail.com']
+const TO_EMAIL = ['heer.luca@gmail.com']
 
 // Canonical source order + display labels, used for fetching, the summary
 // email, and the run log so a new source is wired in exactly one place.

@@ -50,8 +50,6 @@ export const LINKEDIN_PAYLOAD = {
   removeAgency: false,
   timeRange: '24h',
   titleSearch: [
-    'HR:*',
-    'Organisationsentwicklung:*',
     'Product Manager',
     'Product Owner',
     'Produktmanager',
@@ -78,14 +76,12 @@ export const CAREER_SITE_PAYLOAD = {
     'Product Manager',
     'Product Owner',
     'Produktmanager',
-    'HR:*',
-    'Organisationsentwicklung:*',
   ],
 } as const
 
 // santamaria-automations/jobs-ch-scraper. `publicationDate: '1'` is the 24h
-// delta filter. The other sources' wildcard titles (`HR:*`) become plain
-// keywords — jobs.ch has no wildcard syntax; its semantic search broadens.
+// delta filter. jobs.ch has no wildcard syntax; its semantic search matches
+// these plain keywords.
 export const JOBS_CH_PAYLOAD = {
   cantons: ['ZH'],
   includeJobDetails: true,
@@ -96,8 +92,6 @@ export const JOBS_CH_PAYLOAD = {
     'Product Manager',
     'Product Owner',
     'Produktmanager',
-    'HR',
-    'Organisationsentwicklung',
   ],
 } as const
 
